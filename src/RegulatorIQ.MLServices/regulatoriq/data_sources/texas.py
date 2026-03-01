@@ -257,12 +257,323 @@ class TexasRegulatoryMonitor:
                 return ""
 
 
+class OklahomaRegulatoryMonitor:
+    """Monitor Oklahoma state agencies for natural gas regulations"""
+
+    def __init__(self):
+        self.sources = {
+            'occ': {
+                'name': 'Oklahoma Corporation Commission',
+                'base_url': 'https://www.occeweb.com',
+                'rules_url': '/rules/',
+                'orders_url': '/orders/',
+                'priority': 1
+            },
+            'odeq': {
+                'name': 'Oklahoma Department of Environmental Quality',
+                'base_url': 'https://www.deq.ok.gov',
+                'rules_url': '/rules/',
+                'priority': 1
+            }
+        }
+
+    async def get_all_regulations(self) -> List[Dict[str, Any]]:
+        """Get all regulations from Oklahoma agencies"""
+        results = []
+
+        occ_rules = await self._scrape_occ_rules()
+        results.extend(occ_rules)
+
+        return results
+
+    async def _scrape_occ_rules(self) -> List[Dict[str, Any]]:
+        """Scrape Oklahoma Corporation Commission rules for natural gas"""
+        rules = []
+
+        async with aiohttp.ClientSession() as session:
+            url = f"{self.sources['occ']['base_url']}{self.sources['occ']['rules_url']}"
+            try:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                    if response.status == 200:
+                        html_content = await response.text()
+                        rules = self._parse_occ_rules_html(html_content)
+            except Exception as e:
+                print(f"Error scraping OCC rules: {e}")
+
+        return rules
+
+    def _parse_occ_rules_html(self, html_content: str) -> List[Dict[str, Any]]:
+        """Parse OCC rules HTML into standardized format"""
+        rules = []
+
+        try:
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(html_content, 'html.parser')
+
+            rule_links = soup.find_all('a', href=re.compile(r'rule|chapter|gas', re.I))
+
+            for link in rule_links[:10]:
+                rules.append({
+                    'source': 'OCC',
+                    'document_id': f"OCC-{hash(link.get('href', '')) % 100000}",
+                    'title': link.get_text(strip=True),
+                    'document_type': 'rule',
+                    'publication_date': None,
+                    'effective_date': None,
+                    'url': f"{self.sources['occ']['base_url']}{link.get('href', '')}",
+                    'pdf_url': None,
+                    'docket_number': None,
+                    'summary': '',
+                    'raw_content': '',
+                    'priority_score': 5
+                })
+        except Exception as e:
+            print(f"Error parsing OCC rules HTML: {e}")
+
+        return rules
+
+
+class LouisianaRegulatoryMonitor:
+    """Monitor Louisiana state agencies for natural gas regulations"""
+
+    def __init__(self):
+        self.sources = {
+            'lpsb': {
+                'name': 'Louisiana Public Service Commission',
+                'base_url': 'https://lpsc.louisiana.gov',
+                'rules_url': '/rules/',
+                'priority': 1
+            },
+            'ldeq': {
+                'name': 'Louisiana Department of Environmental Quality',
+                'base_url': 'https://deq.louisiana.gov',
+                'rules_url': '/rules/',
+                'priority': 1
+            },
+            'lregister': {
+                'name': 'Louisiana Register',
+                'base_url': 'https://www.doa.la.gov',
+                'register_url': '/pages/osr/reg/',
+                'priority': 2
+            }
+        }
+
+    async def get_all_regulations(self) -> List[Dict[str, Any]]:
+        """Get all regulations from Louisiana agencies"""
+        results = []
+
+        lpsc_rules = await self._scrape_lpsc_rules()
+        results.extend(lpsc_rules)
+
+        return results
+
+    async def _scrape_lpsc_rules(self) -> List[Dict[str, Any]]:
+        """Scrape Louisiana Public Service Commission rules"""
+        rules = []
+
+        async with aiohttp.ClientSession() as session:
+            url = f"{self.sources['lpsb']['base_url']}{self.sources['lpsb']['rules_url']}"
+            try:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                    if response.status == 200:
+                        html_content = await response.text()
+                        rules = self._parse_lpsc_rules_html(html_content)
+            except Exception as e:
+                print(f"Error scraping LPSC rules: {e}")
+
+        return rules
+
+    def _parse_lpsc_rules_html(self, html_content: str) -> List[Dict[str, Any]]:
+        """Parse LPSC rules HTML into standardized format"""
+        rules = []
+
+        try:
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(html_content, 'html.parser')
+
+            rule_links = soup.find_all('a', href=re.compile(r'rule|gas|pipeline', re.I))
+
+            for link in rule_links[:10]:
+                rules.append({
+                    'source': 'LPSC',
+                    'document_id': f"LPSC-{hash(link.get('href', '')) % 100000}",
+                    'title': link.get_text(strip=True),
+                    'document_type': 'rule',
+                    'publication_date': None,
+                    'effective_date': None,
+                    'url': f"{self.sources['lpsb']['base_url']}{link.get('href', '')}",
+                    'pdf_url': None,
+                    'docket_number': None,
+                    'summary': '',
+                    'raw_content': '',
+                    'priority_score': 5
+                })
+        except Exception as e:
+            print(f"Error parsing LPSC rules HTML: {e}")
+
+        return rules
+
+
+class NewMexicoRegulatoryMonitor:
+    """Monitor New Mexico state agencies for natural gas regulations"""
+
+    def __init__(self):
+        self.sources = {
+            'nmprc': {
+                'name': 'New Mexico Public Regulation Commission',
+                'base_url': 'https://www.nmprc.state.nm.us',
+                'rules_url': '/rules/',
+                'priority': 1
+            },
+            'nmocd': {
+                'name': 'New Mexico Oil Conservation Division',
+                'base_url': 'https://www.emnrd.nm.gov/ocd',
+                'rules_url': '/regulations/',
+                'priority': 1
+            }
+        }
+
+    async def get_all_regulations(self) -> List[Dict[str, Any]]:
+        """Get all regulations from New Mexico agencies"""
+        results = []
+
+        nmprc_rules = await self._scrape_nmprc_rules()
+        results.extend(nmprc_rules)
+
+        return results
+
+    async def _scrape_nmprc_rules(self) -> List[Dict[str, Any]]:
+        """Scrape New Mexico Public Regulation Commission rules"""
+        rules = []
+
+        async with aiohttp.ClientSession() as session:
+            url = f"{self.sources['nmprc']['base_url']}{self.sources['nmprc']['rules_url']}"
+            try:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                    if response.status == 200:
+                        html_content = await response.text()
+                        rules = self._parse_nmprc_rules_html(html_content)
+            except Exception as e:
+                print(f"Error scraping NMPRC rules: {e}")
+
+        return rules
+
+    def _parse_nmprc_rules_html(self, html_content: str) -> List[Dict[str, Any]]:
+        """Parse NMPRC rules HTML into standardized format"""
+        rules = []
+
+        try:
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(html_content, 'html.parser')
+
+            rule_links = soup.find_all('a', href=re.compile(r'rule|gas|nmac', re.I))
+
+            for link in rule_links[:10]:
+                rules.append({
+                    'source': 'NMPRC',
+                    'document_id': f"NMPRC-{hash(link.get('href', '')) % 100000}",
+                    'title': link.get_text(strip=True),
+                    'document_type': 'rule',
+                    'publication_date': None,
+                    'effective_date': None,
+                    'url': f"{self.sources['nmprc']['base_url']}{link.get('href', '')}",
+                    'pdf_url': None,
+                    'docket_number': None,
+                    'summary': '',
+                    'raw_content': '',
+                    'priority_score': 5
+                })
+        except Exception as e:
+            print(f"Error parsing NMPRC rules HTML: {e}")
+
+        return rules
+
+
+class ArkansasRegulatoryMonitor:
+    """Monitor Arkansas state agencies for natural gas regulations"""
+
+    def __init__(self):
+        self.sources = {
+            'apsc': {
+                'name': 'Arkansas Public Service Commission',
+                'base_url': 'https://www.apscservices.info',
+                'rules_url': '/rules/',
+                'priority': 1
+            },
+            'adeq': {
+                'name': 'Arkansas Department of Energy and Environment',
+                'base_url': 'https://www.healthy.arkansas.gov/programs-services/topics/air-division',
+                'rules_url': '/regulations/',
+                'priority': 1
+            }
+        }
+
+    async def get_all_regulations(self) -> List[Dict[str, Any]]:
+        """Get all regulations from Arkansas agencies"""
+        results = []
+
+        apsc_rules = await self._scrape_apsc_rules()
+        results.extend(apsc_rules)
+
+        return results
+
+    async def _scrape_apsc_rules(self) -> List[Dict[str, Any]]:
+        """Scrape Arkansas Public Service Commission rules"""
+        rules = []
+
+        async with aiohttp.ClientSession() as session:
+            url = f"{self.sources['apsc']['base_url']}{self.sources['apsc']['rules_url']}"
+            try:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                    if response.status == 200:
+                        html_content = await response.text()
+                        rules = self._parse_apsc_rules_html(html_content)
+            except Exception as e:
+                print(f"Error scraping APSC rules: {e}")
+
+        return rules
+
+    def _parse_apsc_rules_html(self, html_content: str) -> List[Dict[str, Any]]:
+        """Parse APSC rules HTML into standardized format"""
+        rules = []
+
+        try:
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(html_content, 'html.parser')
+
+            rule_links = soup.find_all('a', href=re.compile(r'rule|gas|order', re.I))
+
+            for link in rule_links[:10]:
+                rules.append({
+                    'source': 'APSC',
+                    'document_id': f"APSC-{hash(link.get('href', '')) % 100000}",
+                    'title': link.get_text(strip=True),
+                    'document_type': 'rule',
+                    'publication_date': None,
+                    'effective_date': None,
+                    'url': f"{self.sources['apsc']['base_url']}{link.get('href', '')}",
+                    'pdf_url': None,
+                    'docket_number': None,
+                    'summary': '',
+                    'raw_content': '',
+                    'priority_score': 5
+                })
+        except Exception as e:
+            print(f"Error parsing APSC rules HTML: {e}")
+
+        return rules
+
+
 class MultiStateMonitor:
     """Monitor multiple states for natural gas regulations"""
 
     def __init__(self):
         self.state_monitors = {
             'texas': TexasRegulatoryMonitor(),
+            'oklahoma': OklahomaRegulatoryMonitor(),
+            'louisiana': LouisianaRegulatoryMonitor(),
+            'new_mexico': NewMexicoRegulatoryMonitor(),
+            'arkansas': ArkansasRegulatoryMonitor(),
         }
 
     async def monitor_all_states(self) -> Dict[str, List[Dict[str, Any]]]:

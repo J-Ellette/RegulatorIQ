@@ -143,6 +143,18 @@ async def monitor_federal_regulations(request: MonitoringRequest):
             ferc_docs = await federal_monitor.monitor_ferc_filings()
             results['ferc'] = ferc_docs
 
+        if not request.sources or 'doe' in request.sources:
+            doe_docs = await federal_monitor.monitor_doe_regulations()
+            results['doe'] = doe_docs
+
+        if not request.sources or 'epa' in request.sources:
+            epa_docs = await federal_monitor.monitor_epa_regulations()
+            results['epa'] = epa_docs
+
+        if not request.sources or 'phmsa' in request.sources:
+            phmsa_docs = await federal_monitor.monitor_phmsa_regulations()
+            results['phmsa'] = phmsa_docs
+
         total_documents = sum(len(v) for v in results.values())
 
         return {
