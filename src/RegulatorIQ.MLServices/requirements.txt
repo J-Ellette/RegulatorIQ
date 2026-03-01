@@ -1,19 +1,19 @@
 # RegulatorIQ ML Services - Python dependencies
 
 # Web framework
-fastapi==0.104.1
+fastapi==0.109.1
 uvicorn[standard]==0.24.0
 pydantic==2.5.0
 
 # HTTP clients
-aiohttp==3.9.1
+aiohttp==3.13.3
 requests==2.31.0
 httpx==0.25.2
 
 # NLP and ML
 spacy==3.7.2
-transformers==4.35.2
-torch==2.1.1
+transformers==4.48.0
+torch==2.6.0
 scikit-learn==1.3.2
 
 # Document processing
@@ -44,16 +44,19 @@ numpy==1.26.2
 
 # Utilities
 python-dotenv==1.0.0
-python-multipart==0.0.6
+python-multipart==0.0.22
 pyyaml==6.0.1
 celery==5.3.6
 
 # OCR support
 pytesseract==0.3.10
-Pillow==10.1.0
+Pillow==10.3.0
 
 # Web scraping
-scrapy==2.11.0
+# NOTE: scrapy has an unpatched DoS vulnerability (CVE no patch available, affected >= 0.7).
+# 2.11.2 is the latest release and resolves all other known scrapy CVEs (auth header
+# leakage, decompression bomb, ReDoS). Monitor https://github.com/scrapy/scrapy for a fix.
+scrapy==2.11.2
 playwright==1.40.0
 selenium==4.15.2
 
