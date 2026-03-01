@@ -53,10 +53,6 @@ pytesseract==0.3.10
 Pillow==12.1.1
 
 # Web scraping
-# NOTE: scrapy has an unpatched DoS vulnerability (CVE no patch available, affected >= 0.7).
-# 2.11.2 is the latest release and resolves all other known scrapy CVEs (auth header
-# leakage, decompression bomb, ReDoS). Monitor https://github.com/scrapy/scrapy for a fix.
-scrapy==2.11.2
 playwright==1.40.0
 selenium==4.15.2
 
