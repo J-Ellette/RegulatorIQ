@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   # PostgreSQL Database
-  # Requires a .env file with DB_USER and DB_PASSWORD. See .env.example for reference.
+  # Requires a .env file with DB_USER and DB_PASSWORD. See .env.example for all required variables.
   postgres:
     image: postgres:15-alpine
     environment:

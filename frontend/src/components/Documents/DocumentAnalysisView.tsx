@@ -143,7 +143,7 @@ const DocumentAnalysisView: React.FC<DocumentAnalysisViewProps> = ({ documentId 
             <Grid item xs={12} md={4}>
               <Paper sx={{ p: 2, textAlign: 'center' }}>
                 <Typography variant="h4" color="primary">
-                  {(analysis.impactAssessment as any)?.impactScore?.toFixed(1) ?? 'N/A'}
+                  {analysis.impactAssessment?.impactScore?.toFixed(1) ?? 'N/A'}
                 </Typography>
                 <Typography variant="body2">Impact Score</Typography>
               </Paper>
@@ -292,7 +292,7 @@ const DocumentAnalysisView: React.FC<DocumentAnalysisViewProps> = ({ documentId 
                   <Typography variant="subtitle1" gutterBottom>
                     Impact Factors
                   </Typography>
-                  {Object.entries((analysis.impactAssessment as any)?.factors ?? {}).map(
+                  {Object.entries(analysis.impactAssessment?.factors ?? {}).map(
                     ([factor, score]) => (
                       <Box key={factor} sx={{ mb: 1 }}>
                         <Typography variant="body2">
@@ -311,7 +311,7 @@ const DocumentAnalysisView: React.FC<DocumentAnalysisViewProps> = ({ documentId 
                   Estimated Implementation Cost
                 </Typography>
                 <Typography variant="h4" color="primary" gutterBottom>
-                  {formatCurrency((analysis.impactAssessment as any)?.estimatedComplianceCost)}
+                  {formatCurrency(analysis.impactAssessment?.estimatedComplianceCost)}
                 </Typography>
 
                 <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>

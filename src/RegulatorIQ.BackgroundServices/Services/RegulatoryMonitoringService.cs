@@ -258,7 +258,7 @@ namespace RegulatorIQ.Services.BackgroundServices
                         AlertType = "deadline_approaching",
                         DocumentId = requirement.DocumentId,
                         Severity = GetDeadlineSeverity(daysUntilDeadline),
-                        Title = $"Compliance Deadline Approaching: {requirement.RequirementText[..Math.Min(100, requirement.RequirementText.Length)]}",
+                        Title = $"Compliance Deadline Approaching: {TruncateText(requirement.RequirementText, 100)}",
                         Message = $"Deadline in {daysUntilDeadline} days: {requirement.Deadline:yyyy-MM-dd}",
                         AlertData = JsonSerializer.Serialize(new
                         {
@@ -309,7 +309,7 @@ namespace RegulatorIQ.Services.BackgroundServices
                                 AlertType = "high_impact_regulation",
                                 DocumentId = document.Id,
                                 Severity = "high",
-                                Title = $"High-Impact Regulation: {document.Title[..Math.Min(200, document.Title.Length)]}",
+                                Title = $"High-Impact Regulation: {TruncateText(document.Title, 200)}",
                                 Message = $"New regulation with impact score {impactScore:F1} requires immediate review",
                                 AlertData = JsonSerializer.Serialize(new
                                 {
@@ -368,6 +368,9 @@ namespace RegulatorIQ.Services.BackgroundServices
             <= 60 => "medium",
             _ => "low"
         };
+
+        private static string TruncateText(string text, int maxLength) =>
+            text.Length <= maxLength ? text : text[..maxLength];
 
         private static DateTime? ParseDate(object? dateValue)
         {
