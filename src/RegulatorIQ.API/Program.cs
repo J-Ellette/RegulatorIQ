@@ -40,7 +40,7 @@ builder.Services.AddStackExchangeRedisCache(options =>
 // Hangfire
 var hangfireConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddHangfire(config =>
-    config.UsePostgreSqlStorage(hangfireConnectionString));
+    config.UsePostgreSqlStorage(o => o.UseNpgsqlConnection(hangfireConnectionString)));
 builder.Services.AddHangfireServer();
 
 // CORS

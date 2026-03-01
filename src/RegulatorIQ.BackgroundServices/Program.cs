@@ -27,7 +27,7 @@ builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 // Hangfire
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddHangfire(config =>
-    config.UsePostgreSqlStorage(connectionString));
+    config.UsePostgreSqlStorage(o => o.UseNpgsqlConnection(connectionString)));
 builder.Services.AddHangfireServer(options =>
 {
     options.WorkerCount = builder.Configuration.GetValue<int>("Hangfire:WorkerCount", 5);

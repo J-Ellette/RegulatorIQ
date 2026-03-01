@@ -36,7 +36,6 @@ namespace RegulatorIQ.Services.BackgroundServices
             _logger = logger;
         }
 
-        [RecurringJob("federal-monitoring", "0 */4 * * *")]
         public async Task MonitorFederalRegulationsAsync()
         {
             _logger.LogInformation("Starting federal regulatory monitoring");
@@ -56,7 +55,6 @@ namespace RegulatorIQ.Services.BackgroundServices
             }
         }
 
-        [RecurringJob("state-monitoring", "0 2,14 * * *")]
         public async Task MonitorStateRegulationsAsync()
         {
             _logger.LogInformation("Starting state regulatory monitoring");
@@ -81,7 +79,6 @@ namespace RegulatorIQ.Services.BackgroundServices
             }
         }
 
-        [RecurringJob("document-processing", "*/15 * * * *")]
         public async Task ProcessPendingDocumentsAsync()
         {
             _logger.LogInformation("Processing pending documents");
@@ -122,7 +119,6 @@ namespace RegulatorIQ.Services.BackgroundServices
             }
         }
 
-        [RecurringJob("compliance-alerts", "0 8,16 * * *")]
         public async Task GenerateComplianceAlertsAsync()
         {
             _logger.LogInformation("Generating compliance alerts");
@@ -142,7 +138,6 @@ namespace RegulatorIQ.Services.BackgroundServices
             }
         }
 
-        [RecurringJob("framework-updates", "0 3 * * *")]
         public async Task UpdateComplianceFrameworksAsync()
         {
             _logger.LogInformation("Updating compliance frameworks");
