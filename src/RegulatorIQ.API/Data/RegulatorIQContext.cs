@@ -18,6 +18,7 @@ namespace RegulatorIQ.Data
         public DbSet<ChangeImpactAssessment> ChangeImpactAssessments { get; set; }
         public DbSet<RegulatoryAlert> RegulatoryAlerts { get; set; }
         public DbSet<RegulatoryAuditLog> RegulatoryAuditLogs { get; set; }
+        public DbSet<MonitoringRun> MonitoringRuns { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -50,6 +51,14 @@ namespace RegulatorIQ.Data
             modelBuilder.Entity<ComplianceFramework>()
                 .HasIndex(f => f.CompanyId)
                 .HasDatabaseName("idx_frameworks_company");
+
+            modelBuilder.Entity<MonitoringRun>()
+                .HasIndex(r => new { r.RunType, r.StartedAt })
+                .HasDatabaseName("idx_monitoring_runs_type_started");
+
+            modelBuilder.Entity<MonitoringRun>()
+                .HasIndex(r => r.Status)
+                .HasDatabaseName("idx_monitoring_runs_status");
 
             // Configure JSON columns
             modelBuilder.Entity<DocumentAnalysis>()
@@ -94,6 +103,10 @@ namespace RegulatorIQ.Data
 
             modelBuilder.Entity<ChangeImpactAssessment>()
                 .Property(c => c.TimelineConflicts)
+                .HasColumnType("jsonb");
+
+            modelBuilder.Entity<MonitoringRun>()
+                .Property(r => r.SourceMetrics)
                 .HasColumnType("jsonb");
 
             // Configure relationships

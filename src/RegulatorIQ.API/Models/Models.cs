@@ -346,4 +346,33 @@ namespace RegulatorIQ.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
+
+    public class MonitoringRun
+    {
+        [Key]
+        public Guid Id { get; set; }
+
+        [Required]
+        [MaxLength(50)]
+        public string RunType { get; set; } = string.Empty;
+
+        [MaxLength(100)]
+        public string? TriggeredBy { get; set; }
+
+        [MaxLength(50)]
+        public string Status { get; set; } = "running";
+
+        public DateTime StartedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? CompletedAt { get; set; }
+
+        public int DocumentsFetched { get; set; }
+        public int DocumentsAdded { get; set; }
+        public int DocumentsSkipped { get; set; }
+        public int FailureCount { get; set; }
+
+        [Column(TypeName = "jsonb")]
+        public string? SourceMetrics { get; set; }
+
+        public string? ErrorSummary { get; set; }
+    }
 }

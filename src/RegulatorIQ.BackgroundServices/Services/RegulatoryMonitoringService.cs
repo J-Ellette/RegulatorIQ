@@ -3,6 +3,9 @@ using RegulatorIQ.Data;
 using RegulatorIQ.Models;
 using RegulatorIQ.Services;
 using Microsoft.EntityFrameworkCore;
+using System.Net.Http.Json;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace RegulatorIQ.Services.BackgroundServices
@@ -22,34 +25,70 @@ namespace RegulatorIQ.Services.BackgroundServices
         private readonly RegulatorIQContext _context;
         private readonly IDocumentAnalysisService _analysisService;
         private readonly IChangeImpactService _changeImpactService;
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IConfiguration _configuration;
         private readonly ILogger<RegulatoryMonitoringService> _logger;
 
         public RegulatoryMonitoringService(
             RegulatorIQContext context,
             IDocumentAnalysisService analysisService,
             IChangeImpactService changeImpactService,
+            IHttpClientFactory httpClientFactory,
+            IConfiguration configuration,
             ILogger<RegulatoryMonitoringService> logger)
         {
             _context = context;
             _analysisService = analysisService;
             _changeImpactService = changeImpactService;
+            _httpClientFactory = httpClientFactory;
+            _configuration = configuration;
             _logger = logger;
         }
 
         public async Task MonitorFederalRegulationsAsync()
         {
+            if (IsJobPaused("federal-monitoring"))
+            {
+                _logger.LogInformation("Skipping federal monitoring because job is paused");
+                return;
+            }
+
             _logger.LogInformation("Starting federal regulatory monitoring");
+
+            var run = await StartMonitoringRunAsync("federal");
+            var fetchedCount = 0;
+            IngestionResult? ingestion = null;
 
             try
             {
-                // Monitor Federal Register API
                 var federalRegisterDocs = await FetchFederalRegisterDocumentsAsync();
-                await ProcessNewDocuments(federalRegisterDocs, "Federal Register");
+                fetchedCount = federalRegisterDocs.Count;
+                ingestion = await ProcessNewDocuments(federalRegisterDocs, "Federal Register");
+
+                await CompleteMonitoringRunAsync(
+                    run,
+                    status: "completed",
+                    fetchedCount,
+                    ingestion.DocumentsAdded,
+                    ingestion.DocumentsSkipped,
+                    ingestion.FailureCount,
+                    ingestion.SourceMetrics,
+                    null);
 
                 _logger.LogInformation("Federal regulatory monitoring completed successfully");
             }
             catch (Exception ex)
             {
+                await CompleteMonitoringRunAsync(
+                    run,
+                    status: "failed",
+                    fetchedCount,
+                    ingestion?.DocumentsAdded ?? 0,
+                    ingestion?.DocumentsSkipped ?? 0,
+                    (ingestion?.FailureCount ?? 0) + 1,
+                    ingestion?.SourceMetrics,
+                    ex.Message);
+
                 _logger.LogError(ex, "Error during federal regulatory monitoring");
                 throw;
             }
@@ -57,23 +96,48 @@ namespace RegulatorIQ.Services.BackgroundServices
 
         public async Task MonitorStateRegulationsAsync()
         {
+            if (IsJobPaused("state-monitoring"))
+            {
+                _logger.LogInformation("Skipping state monitoring because job is paused");
+                return;
+            }
+
             _logger.LogInformation("Starting state regulatory monitoring");
+
+            var run = await StartMonitoringRunAsync("state");
+            var fetchedCount = 0;
+            IngestionResult? ingestion = null;
 
             try
             {
-                var states = new[] { "Texas", "Oklahoma", "Louisiana", "New Mexico", "Arkansas" };
+                var stateDocuments = await FetchStateDocumentsAsync();
+                fetchedCount = stateDocuments.Count;
+                ingestion = await ProcessNewDocuments(stateDocuments, "State Monitor");
 
-                foreach (var state in states)
-                {
-                    _logger.LogInformation("Monitoring {State} regulations", state);
-                    // Placeholder: In production, implement state-specific scrapers
-                    await Task.Delay(100);
-                }
+                await CompleteMonitoringRunAsync(
+                    run,
+                    status: "completed",
+                    fetchedCount,
+                    ingestion.DocumentsAdded,
+                    ingestion.DocumentsSkipped,
+                    ingestion.FailureCount,
+                    ingestion.SourceMetrics,
+                    null);
 
                 _logger.LogInformation("State regulatory monitoring completed successfully");
             }
             catch (Exception ex)
             {
+                await CompleteMonitoringRunAsync(
+                    run,
+                    status: "failed",
+                    fetchedCount,
+                    ingestion?.DocumentsAdded ?? 0,
+                    ingestion?.DocumentsSkipped ?? 0,
+                    (ingestion?.FailureCount ?? 0) + 1,
+                    ingestion?.SourceMetrics,
+                    ex.Message);
+
                 _logger.LogError(ex, "Error during state regulatory monitoring");
                 throw;
             }
@@ -81,6 +145,12 @@ namespace RegulatorIQ.Services.BackgroundServices
 
         public async Task ProcessPendingDocumentsAsync()
         {
+            if (IsJobPaused("document-processing"))
+            {
+                _logger.LogInformation("Skipping document processing because job is paused");
+                return;
+            }
+
             _logger.LogInformation("Processing pending documents");
 
             try
@@ -121,6 +191,12 @@ namespace RegulatorIQ.Services.BackgroundServices
 
         public async Task GenerateComplianceAlertsAsync()
         {
+            if (IsJobPaused("compliance-alerts"))
+            {
+                _logger.LogInformation("Skipping compliance alerts generation because job is paused");
+                return;
+            }
+
             _logger.LogInformation("Generating compliance alerts");
 
             try
@@ -140,6 +216,12 @@ namespace RegulatorIQ.Services.BackgroundServices
 
         public async Task UpdateComplianceFrameworksAsync()
         {
+            if (IsJobPaused("framework-updates"))
+            {
+                _logger.LogInformation("Skipping framework updates because job is paused");
+                return;
+            }
+
             _logger.LogInformation("Updating compliance frameworks");
 
             try
@@ -169,22 +251,127 @@ namespace RegulatorIQ.Services.BackgroundServices
             }
         }
 
-        private async Task<List<Dictionary<string, object>>> FetchFederalRegisterDocumentsAsync()
+        private async Task<List<Dictionary<string, object?>>> FetchFederalRegisterDocumentsAsync()
         {
-            // Placeholder for Federal Register API integration
-            return new List<Dictionary<string, object>>();
+            var defaultSources = new[] { "federal_register", "ferc", "doe", "epa", "phmsa" };
+            return await FetchDocumentsFromMonitoringEndpointAsync("/monitor/federal", defaultSources, "federal");
         }
 
-        private async Task ProcessNewDocuments(
-            List<Dictionary<string, object>> documents,
+        private async Task<List<Dictionary<string, object?>>> FetchStateDocumentsAsync()
+        {
+            var defaultSources = new[] { "texas" };
+            return await FetchDocumentsFromMonitoringEndpointAsync("/monitor/state", defaultSources, "state");
+        }
+
+        private async Task<List<Dictionary<string, object?>>> FetchDocumentsFromMonitoringEndpointAsync(
+            string endpoint,
+            string[] defaultSources,
+            string sourceType)
+        {
+            try
+            {
+                var configuredSources = _configuration.GetSection($"Monitoring:{sourceType}:Sources").Get<string[]>();
+                var sources = configuredSources is { Length: > 0 } ? configuredSources : defaultSources;
+
+                var mlServiceUrl = (_configuration["MLServices:BaseUrl"] ?? "http://ml-services:8000").TrimEnd('/');
+                var timeoutSeconds = _configuration.GetValue<int>("Monitoring:RequestTimeoutSeconds", 60);
+
+                var client = _httpClientFactory.CreateClient("MLServices");
+                client.Timeout = TimeSpan.FromSeconds(Math.Max(10, timeoutSeconds));
+
+                var payload = new { sources };
+                var response = await client.PostAsJsonAsync($"{mlServiceUrl}{endpoint}", payload);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("Monitoring endpoint {Endpoint} returned status {StatusCode}", endpoint, response.StatusCode);
+                    return new List<Dictionary<string, object?>>();
+                }
+
+                var body = await response.Content.ReadAsStringAsync();
+                using var json = JsonDocument.Parse(body);
+
+                if (!json.RootElement.TryGetProperty("documents", out var documentsNode) ||
+                    documentsNode.ValueKind != JsonValueKind.Object)
+                {
+                    _logger.LogWarning("Monitoring endpoint {Endpoint} did not return a valid documents payload", endpoint);
+                    return new List<Dictionary<string, object?>>();
+                }
+
+                var flattened = new List<Dictionary<string, object?>>();
+                foreach (var sourceBucket in documentsNode.EnumerateObject())
+                {
+                    if (sourceBucket.Value.ValueKind != JsonValueKind.Array)
+                    {
+                        continue;
+                    }
+
+                    foreach (var docEl in sourceBucket.Value.EnumerateArray())
+                    {
+                        if (docEl.ValueKind != JsonValueKind.Object)
+                        {
+                            continue;
+                        }
+
+                        var parsed = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(docEl.GetRawText())
+                            ?? new Dictionary<string, JsonElement>();
+
+                        var record = new Dictionary<string, object?>();
+                        foreach (var kvp in parsed)
+                        {
+                            record[kvp.Key] = ConvertJsonElement(kvp.Value);
+                        }
+
+                        if (!record.ContainsKey("source") || string.IsNullOrWhiteSpace(record["source"]?.ToString()))
+                        {
+                            record["source"] = sourceBucket.Name;
+                        }
+
+                        flattened.Add(record);
+                    }
+                }
+
+                _logger.LogInformation(
+                    "Fetched {Count} {SourceType} documents from {Endpoint}",
+                    flattened.Count,
+                    sourceType,
+                    endpoint);
+
+                return flattened;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching documents from endpoint {Endpoint}", endpoint);
+                return new List<Dictionary<string, object?>>();
+            }
+        }
+
+        private async Task<IngestionResult> ProcessNewDocuments(
+            List<Dictionary<string, object?>> documents,
             string source)
         {
+            var result = new IngestionResult();
+
             foreach (var docData in documents)
             {
+                var docSource = GetStringValue(docData, "source") ?? source;
+                result.GetMetrics(docSource).Fetched++;
+
                 try
                 {
-                    var documentId = docData["document_id"]?.ToString();
-                    if (string.IsNullOrEmpty(documentId)) continue;
+                    var title = GetStringValue(docData, "title") ?? "Untitled";
+                    var sourceUrl = GetStringValue(docData, "url") ?? GetStringValue(docData, "source_url");
+
+                    var publicationDate = ParseDate(GetValue(docData, "publication_date"));
+                    var documentId =
+                        GetStringValue(docData, "document_id") ??
+                        GetStringValue(docData, "document_number") ??
+                        GetStringValue(docData, "id");
+
+                    if (string.IsNullOrWhiteSpace(documentId))
+                    {
+                        documentId = CreateSyntheticDocumentId(docSource, title, sourceUrl, publicationDate);
+                    }
 
                     var existingDoc = await _context.RegulatoryDocuments
                         .FirstOrDefaultAsync(d => d.DocumentId == documentId);
@@ -192,29 +379,31 @@ namespace RegulatorIQ.Services.BackgroundServices
                     if (existingDoc == null)
                     {
                         var agency = await _context.RegulatoryAgencies
-                            .FirstOrDefaultAsync(a => a.Name.Contains(source) || a.Abbreviation == source);
+                            .FirstOrDefaultAsync(a => a.Name.Contains(docSource) || a.Abbreviation == docSource);
 
                         var newDocument = new RegulatoryDocument
                         {
                             Id = Guid.NewGuid(),
                             DocumentId = documentId,
-                            Title = docData.GetValueOrDefault("title")?.ToString() ?? "Untitled",
-                            DocumentType = docData.GetValueOrDefault("document_type")?.ToString(),
-                            PublicationDate = ParseDate(docData.GetValueOrDefault("publication_date")),
-                            EffectiveDate = ParseDate(docData.GetValueOrDefault("effective_date")),
-                            SourceUrl = docData.GetValueOrDefault("url")?.ToString(),
-                            PdfUrl = docData.GetValueOrDefault("pdf_url")?.ToString(),
-                            RawContent = docData.GetValueOrDefault("raw_content")?.ToString(),
-                            DocketNumber = docData.GetValueOrDefault("docket_number")?.ToString(),
-                            PriorityScore = Convert.ToInt32(docData.GetValueOrDefault("priority_score") ?? 0),
+                            Title = title,
+                            DocumentType = GetStringValue(docData, "document_type"),
+                            PublicationDate = publicationDate,
+                            EffectiveDate = ParseDate(GetValue(docData, "effective_date")),
+                            SourceUrl = sourceUrl,
+                            PdfUrl = GetStringValue(docData, "pdf_url"),
+                            RawContent = GetStringValue(docData, "raw_content") ?? GetStringValue(docData, "summary"),
+                            DocketNumber = GetStringValue(docData, "docket_number") ?? GetStringValue(docData, "docket_id"),
+                            PriorityScore = ParsePriorityScore(GetValue(docData, "priority_score")),
                             AgencyId = agency?.Id
                         };
 
                         _context.RegulatoryDocuments.Add(newDocument);
                         await _context.SaveChangesAsync();
+                        result.DocumentsAdded++;
+                        result.GetMetrics(docSource).Added++;
 
                         _logger.LogInformation("Added new document {DocumentId} from {Source}",
-                            documentId, source);
+                            documentId, docSource);
 
                         if (newDocument.PriorityScore >= 10)
                         {
@@ -222,12 +411,125 @@ namespace RegulatorIQ.Services.BackgroundServices
                                 service => service.AnalyzeDocumentAsync(newDocument.Id));
                         }
                     }
+                    else
+                    {
+                        result.DocumentsSkipped++;
+                        result.GetMetrics(docSource).Skipped++;
+                    }
                 }
                 catch (Exception ex)
                 {
+                    result.FailureCount++;
+                    result.GetMetrics(docSource).Failures++;
                     _logger.LogError(ex, "Error processing document from {Source}", source);
                 }
             }
+
+            return result;
+        }
+
+        private async Task<MonitoringRun> StartMonitoringRunAsync(string runType)
+        {
+            var run = new MonitoringRun
+            {
+                Id = Guid.NewGuid(),
+                RunType = runType,
+                TriggeredBy = "hangfire",
+                Status = "running",
+                StartedAt = DateTime.UtcNow
+            };
+
+            _context.MonitoringRuns.Add(run);
+            await _context.SaveChangesAsync();
+            return run;
+        }
+
+        private async Task CompleteMonitoringRunAsync(
+            MonitoringRun run,
+            string status,
+            int documentsFetched,
+            int documentsAdded,
+            int documentsSkipped,
+            int failureCount,
+            Dictionary<string, SourceMetric>? sourceMetrics,
+            string? errorSummary)
+        {
+            run.Status = status;
+            run.CompletedAt = DateTime.UtcNow;
+            run.DocumentsFetched = documentsFetched;
+            run.DocumentsAdded = documentsAdded;
+            run.DocumentsSkipped = documentsSkipped;
+            run.FailureCount = failureCount;
+            run.SourceMetrics = sourceMetrics != null ? JsonSerializer.Serialize(sourceMetrics) : null;
+            run.ErrorSummary = errorSummary;
+
+            await _context.SaveChangesAsync();
+        }
+
+        private static object? GetValue(Dictionary<string, object?> data, string key) =>
+            data.TryGetValue(key, out var value) ? value : null;
+
+        private static string? GetStringValue(Dictionary<string, object?> data, string key) =>
+            data.TryGetValue(key, out var value) ? value?.ToString() : null;
+
+        private static int ParsePriorityScore(object? priorityScore)
+        {
+            if (priorityScore == null) return 0;
+            if (priorityScore is int pInt) return pInt;
+            if (priorityScore is long pLong) return (int)Math.Clamp(pLong, int.MinValue, int.MaxValue);
+            if (priorityScore is double pDouble) return (int)Math.Round(pDouble);
+            if (int.TryParse(priorityScore.ToString(), out var parsed)) return parsed;
+            return 0;
+        }
+
+        private static string CreateSyntheticDocumentId(
+            string source,
+            string title,
+            string? url,
+            DateTime? publicationDate)
+        {
+            var seed = $"{source}|{title}|{url}|{publicationDate:yyyy-MM-dd}";
+            var hash = SHA256.HashData(Encoding.UTF8.GetBytes(seed));
+            var id = Convert.ToHexString(hash)[..16];
+            return $"AUTO-{id}";
+        }
+
+        private static object? ConvertJsonElement(JsonElement element) => element.ValueKind switch
+        {
+            JsonValueKind.String => element.GetString(),
+            JsonValueKind.Number when element.TryGetInt64(out var i) => i,
+            JsonValueKind.Number when element.TryGetDouble(out var d) => d,
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Null => null,
+            _ => element.GetRawText()
+        };
+
+        private sealed class IngestionResult
+        {
+            public int DocumentsAdded { get; set; }
+            public int DocumentsSkipped { get; set; }
+            public int FailureCount { get; set; }
+            public Dictionary<string, SourceMetric> SourceMetrics { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+            public SourceMetric GetMetrics(string source)
+            {
+                if (!SourceMetrics.TryGetValue(source, out var metric))
+                {
+                    metric = new SourceMetric();
+                    SourceMetrics[source] = metric;
+                }
+
+                return metric;
+            }
+        }
+
+        private sealed class SourceMetric
+        {
+            public int Fetched { get; set; }
+            public int Added { get; set; }
+            public int Skipped { get; set; }
+            public int Failures { get; set; }
         }
 
         private async Task CheckApproachingDeadlinesAsync()
@@ -376,6 +678,20 @@ namespace RegulatorIQ.Services.BackgroundServices
         {
             if (dateValue == null) return null;
             return DateTime.TryParse(dateValue.ToString(), out var result) ? result : null;
+        }
+
+        private static bool IsJobPaused(string jobId)
+        {
+            try
+            {
+                using var connection = JobStorage.Current.GetConnection();
+                var pausedJobs = connection.GetAllItemsFromSet(MonitoringJobControl.PausedJobsSetKey);
+                return pausedJobs.Any(paused => paused.Equals(jobId, StringComparison.OrdinalIgnoreCase));
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 

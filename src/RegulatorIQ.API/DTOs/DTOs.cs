@@ -294,4 +294,115 @@ namespace RegulatorIQ.DTOs
         public int ImpactAssessments { get; set; }
         public int ComplianceGaps { get; set; }
     }
+
+    public class MonitoringRunDto
+    {
+        public Guid Id { get; set; }
+        public string RunType { get; set; } = string.Empty;
+        public string? TriggeredBy { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public DateTime StartedAt { get; set; }
+        public DateTime? CompletedAt { get; set; }
+        public long? DurationMs { get; set; }
+        public int DocumentsFetched { get; set; }
+        public int DocumentsAdded { get; set; }
+        public int DocumentsSkipped { get; set; }
+        public int FailureCount { get; set; }
+        public object? SourceMetrics { get; set; }
+        public string? ErrorSummary { get; set; }
+    }
+
+    public class MonitoringSummaryDto
+    {
+        public DateTime WindowStartUtc { get; set; }
+        public DateTime WindowEndUtc { get; set; }
+        public int TotalRuns { get; set; }
+        public int SuccessfulRuns { get; set; }
+        public int FailedRuns { get; set; }
+        public int TotalDocumentsFetched { get; set; }
+        public int TotalDocumentsAdded { get; set; }
+        public int TotalFailures { get; set; }
+        public double? AverageDurationMs { get; set; }
+        public Dictionary<string, SourceSummaryDto> BySource { get; set; } = new();
+    }
+
+    public class SourceSummaryDto
+    {
+        public int Fetched { get; set; }
+        public int Added { get; set; }
+        public int Skipped { get; set; }
+        public int Failures { get; set; }
+    }
+
+    public class TriggerMonitoringRunRequest
+    {
+        public string RunType { get; set; } = "all";
+        public string? ActedBy { get; set; }
+        public string? Reason { get; set; }
+    }
+
+    public class TriggerMonitoringRunResponse
+    {
+        public string RequestedRunType { get; set; } = string.Empty;
+        public List<string> TriggeredJobs { get; set; } = new();
+        public DateTime TriggeredAtUtc { get; set; }
+    }
+
+    public class MonitoringJobStatusDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string? Cron { get; set; }
+        public string? LastJobState { get; set; }
+        public DateTime? LastExecution { get; set; }
+        public DateTime? NextExecution { get; set; }
+        public string? Error { get; set; }
+        public bool IsPaused { get; set; }
+    }
+
+    public class TriggerMonitoringJobResponse
+    {
+        public string JobId { get; set; } = string.Empty;
+        public DateTime TriggeredAtUtc { get; set; }
+    }
+
+    public class MonitoringJobActionRequest
+    {
+        public string? ActedBy { get; set; }
+        public string? Reason { get; set; }
+    }
+
+    public class MonitoringJobControlResponse
+    {
+        public string JobId { get; set; } = string.Empty;
+        public bool IsPaused { get; set; }
+        public DateTime UpdatedAtUtc { get; set; }
+    }
+
+    public class MonitoringJobAuditEntryDto
+    {
+        public Guid Id { get; set; }
+        public string Action { get; set; } = string.Empty;
+        public string? JobId { get; set; }
+        public string? ChangedBy { get; set; }
+        public string? ChangeReason { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public object? OldData { get; set; }
+        public object? NewData { get; set; }
+    }
+
+    public class MonitoringJobAuditSummaryDto
+    {
+        public int Total { get; set; }
+        public int Triggered { get; set; }
+        public int Paused { get; set; }
+        public int Resumed { get; set; }
+        public List<MonitoringJobAuditBreakdownItemDto> TopActors { get; set; } = new();
+        public List<MonitoringJobAuditBreakdownItemDto> TopJobs { get; set; } = new();
+    }
+
+    public class MonitoringJobAuditBreakdownItemDto
+    {
+        public string Key { get; set; } = string.Empty;
+        public int Count { get; set; }
+    }
 }

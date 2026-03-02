@@ -39,6 +39,9 @@ const ComplianceFrameworkDetailView = React.lazy(
 const AlertsHistoryView = React.lazy(
   () => import('./components/Alerts/AlertsHistoryView')
 );
+const MonitoringView = React.lazy(
+  () => import('./components/Monitoring/MonitoringView')
+);
 
 const theme = createTheme({
   palette: {
@@ -119,6 +122,7 @@ const AppShell: React.FC = () => {
             <Route path="/frameworks/:id" element={<ComplianceFrameworkDetailPage />} />
             <Route path="/frameworks/:id/assessments" element={<ComplianceFrameworkDetailPage />} />
             <Route path="/alerts" element={<AlertsHistoryView />} />
+            <Route path="/monitoring" element={<MonitoringView />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </Suspense>

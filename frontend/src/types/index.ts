@@ -209,3 +209,91 @@ export interface AlertFilter {
   status?: string[];
   alertTypes?: string[];
 }
+
+export interface SourceSummary {
+  fetched: number;
+  added: number;
+  skipped: number;
+  failures: number;
+}
+
+export interface MonitoringRun {
+  id: string;
+  runType: string;
+  triggeredBy?: string;
+  status: string;
+  startedAt: string;
+  completedAt?: string;
+  durationMs?: number;
+  documentsFetched: number;
+  documentsAdded: number;
+  documentsSkipped: number;
+  failureCount: number;
+  sourceMetrics?: Record<string, SourceSummary>;
+  errorSummary?: string;
+}
+
+export interface MonitoringSummary {
+  windowStartUtc: string;
+  windowEndUtc: string;
+  totalRuns: number;
+  successfulRuns: number;
+  failedRuns: number;
+  totalDocumentsFetched: number;
+  totalDocumentsAdded: number;
+  totalFailures: number;
+  averageDurationMs?: number;
+  bySource: Record<string, SourceSummary>;
+}
+
+export interface TriggerMonitoringRunResponse {
+  requestedRunType: string;
+  triggeredJobs: string[];
+  triggeredAtUtc: string;
+}
+
+export interface TriggerMonitoringJobResponse {
+  jobId: string;
+  triggeredAtUtc: string;
+}
+
+export interface MonitoringJobStatus {
+  id: string;
+  cron?: string;
+  lastJobState?: string;
+  lastExecution?: string;
+  nextExecution?: string;
+  error?: string;
+  isPaused?: boolean;
+}
+
+export interface MonitoringJobControlResponse {
+  jobId: string;
+  isPaused: boolean;
+  updatedAtUtc: string;
+}
+
+export interface MonitoringJobAuditEntry {
+  id: string;
+  action: string;
+  jobId?: string;
+  changedBy?: string;
+  changeReason?: string;
+  createdAt: string;
+  oldData?: unknown;
+  newData?: unknown;
+}
+
+export interface MonitoringJobAuditSummary {
+  total: number;
+  triggered: number;
+  paused: number;
+  resumed: number;
+  topActors: MonitoringJobAuditBreakdownItem[];
+  topJobs: MonitoringJobAuditBreakdownItem[];
+}
+
+export interface MonitoringJobAuditBreakdownItem {
+  key: string;
+  count: number;
+}

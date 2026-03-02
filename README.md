@@ -24,6 +24,8 @@ RegulatorIQ helps compliance teams:
 - Compliance framework lifecycle fields/actions: status, owner, next review date.
 - Agencies API: list and detail.
 - Hangfire integrated in API + dedicated background worker service.
+- Background monitoring jobs now pull federal/state documents from ML monitoring endpoints and ingest them into the document store.
+- Monitoring run telemetry persisted for federal/state jobs (counts, duration, failures, and per-source metrics).
 - Health endpoint (`/health`) and Hangfire dashboard (`/hangfire`).
 
 ### AI/ML services (implemented)
@@ -44,6 +46,8 @@ RegulatorIQ helps compliance teams:
 - React + TypeScript + Material UI + React Query.
 - Views:
   - Dashboard
+  - Monitoring operations page (run history, filters, expandable run details)
+  - Monitoring job schedules/status table (last run, next run, cron, state)
   - Alerts history and filtering (status/severity/type)
   - Alerts SLA analytics (time-to-ack, time-to-resolve, unresolved aging, 7/30-day trends, per-severity breakdown)
   - Documents list
@@ -79,6 +83,7 @@ Latest completed work:
 - Added alerts SLA metrics on history view (average time-to-ack, average time-to-resolve, unresolved aging with >24h/>72h counters).
 - Added 7/30-day SLA trend lines and per-severity SLA breakdown to alerts analytics.
 - Added pluggable analysis providers (`IAIAnalysisProvider`, `IRulesAnalysisProvider`) with configurable `Analysis:Mode` and automatic AI→rules failover in `Auto` mode.
+- Added live federal/state monitoring ingestion in background jobs by calling ML services (`/monitor/federal`, `/monitor/state`) with source-based flattening and synthetic-ID dedupe fallback.
 
 ## Repository structure
 
@@ -179,6 +184,47 @@ Note: `react-scripts@5` can conflict with newer TypeScript/Node combinations. If
 - `POST /api/regulatorydocuments/alerts/{id}/resolve`
 - `POST /api/regulatorydocuments/bulk-analyze`
 
+### Monitoring operations
+
+- `GET /api/monitoring/runs?runType={federal|state}&status={completed|failed}&take=50`
+- `GET /api/monitoring/summary?hours=24`
+- `POST /api/monitoring/trigger` with body `{ "runType": "all|federal|state" }`
+- `GET /api/monitoring/jobs`
+- `POST /api/monitoring/jobs/{jobId}/trigger`
+- `POST /api/monitoring/jobs/{jobId}/pause`
+- `POST /api/monitoring/jobs/{jobId}/resume`
+- `GET /api/monitoring/jobs/audit?jobId={jobId}&action={action}&actor={actor}&fromUtc={isoUtc}&toUtc={isoUtc}&sortBy={createdAt|action|actor|job}&sortDir={asc|desc}&skip=0&take=100`
+- `GET /api/monitoring/jobs/audit/summary?jobId={jobId}&actor={actor}&fromUtc={isoUtc}&toUtc={isoUtc}`
+- `GET /api/monitoring/jobs/audit/export?jobId={jobId}&action={action}&actor={actor}&fromUtc={isoUtc}&toUtc={isoUtc}&take=5000` (CSV)
+
+Each monitoring action endpoint accepts optional actor metadata in body:
+
+- `{ "actedBy": "user@company.com", "reason": "optional note" }`
+
+Monitoring actions (`trigger`, `pause`, `resume`) now write per-job audit records in `RegulatoryAuditLogs` with:
+
+- action (`monitoring_job_triggered|monitoring_job_paused|monitoring_job_resumed`),
+- actor (`ChangedBy`),
+- timestamp (`CreatedAt`),
+- structured before/after state in `OldData`/`NewData`.
+
+Returns execution history and operational metrics including:
+
+- document counts (`fetched`, `added`, `skipped`),
+- run duration,
+- run failure counts,
+- aggregated per-source breakdown.
+
+Frontend route:
+
+- `/monitoring` — dedicated operations view with run history filters, expandable source-level metrics, per-job actions (`Trigger now`, `Pause`, `Resume`), and a Job Action Audit panel (action/actor/time/reason).
+- `/monitoring` query params now support sharing operational context, including audit filters/paging/sort: `auditJob`, `auditAction`, `auditActor`, `auditWindow`, `auditSort`, `auditDir`, `auditPage`, `auditPageSize`.
+- `/monitoring` includes a `Copy View Link` action to share the current route + query state.
+- `/monitoring` Job Action Audit panel includes `Export CSV` for the active audit filters/window.
+- `/monitoring` Job Action Audit panel includes action breakdown chips (`Total`, `Triggered`, `Paused`, `Resumed`) for current audit filters/window.
+- `/monitoring` Job Action Audit panel includes mini leaderboards for `Top actors` and `Top jobs` in the active audit filter window.
+- `/monitoring` Job Action Audit panel includes `Clear Audit Filters` to reset audit filters/window/sort/paging to defaults.
+
 ### Compliance frameworks
 
 - `GET /api/complianceframeworks?companyId={guid}`
@@ -222,6 +268,15 @@ Examples:
 - `Analysis__Mode=Auto`
 - `Analysis__Mode=AI`
 - `Analysis__Mode=Rules`
+
+## Monitoring source configuration
+
+Background monitoring supports source selection and request timeout via config:
+
+- `Monitoring__RequestTimeoutSeconds=60`
+- `Monitoring__federal__Sources__0=federal_register`
+- `Monitoring__federal__Sources__1=ferc`
+- `Monitoring__state__Sources__0=texas`
 
 ## Operations and diagnostics
 

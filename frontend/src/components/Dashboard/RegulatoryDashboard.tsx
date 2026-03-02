@@ -28,12 +28,19 @@ import {
   TrendingUp,
   Notifications,
   Assessment,
+  MonitorHeart,
 } from '@mui/icons-material';
 import type { AlertColor } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { regulatoryApi } from '../../services/api';
-import type { RegulatoryDocument, ComplianceFramework, RegulatoryAlert } from '../../types';
+import type {
+  RegulatoryDocument,
+  ComplianceFramework,
+  RegulatoryAlert,
+  MonitoringRun,
+  SourceSummary,
+} from '../../types';
 
 const RegulatoryDashboard: React.FC = () => {
   const [timeframe, setTimeframe] = useState<'week' | 'month' | 'quarter'>('month');
@@ -61,6 +68,22 @@ const RegulatoryDashboard: React.FC = () => {
     queryFn: () => regulatoryApi.getComplianceFrameworks(),
   });
 
+  const { data: monitoringRuns, isLoading: monitoringRunsLoading } = useQuery({
+    queryKey: ['monitoring-runs-dashboard'],
+    queryFn: () => regulatoryApi.getMonitoringRuns({ take: 20 }),
+  });
+
+  const { data: monitoringSummary, isLoading: monitoringSummaryLoading } = useQuery({
+    queryKey: ['monitoring-summary-dashboard'],
+    queryFn: () => regulatoryApi.getMonitoringSummary(24),
+  });
+
+  const { data: monitoringRunningRuns } = useQuery({
+    queryKey: ['monitoring-running-dashboard-indicator'],
+    queryFn: () => regulatoryApi.getMonitoringRuns({ status: 'running', take: 1 }),
+    refetchInterval: 5000,
+  });
+
   const acknowledgeAlert = useMutation({
     mutationFn: (alertId: string) => regulatoryApi.acknowledgeAlert(alertId, 'dashboard-user'),
     onSuccess: () => {
@@ -79,6 +102,16 @@ const RegulatoryDashboard: React.FC = () => {
   const handleDownloadPdf = (url?: string) => {
     if (url) window.open(url, '_blank');
   };
+
+  const latestFederalRun = monitoringRuns?.find((run) => run.runType === 'federal');
+  const latestStateRun = monitoringRuns?.find((run) => run.runType === 'state');
+  const activeMonitoringRun = monitoringRunningRuns?.[0];
+
+  const sourceFailures = Object.entries(monitoringSummary?.bySource ?? {})
+    .map(([source, metrics]) => ({ source, metrics }))
+    .filter((entry) => entry.metrics.failures > 0)
+    .sort((a, b) => b.metrics.failures - a.metrics.failures)
+    .slice(0, 5);
 
   const filteredRecentDocuments = (recentDocuments ?? []).filter((doc) => {
     if (providerFilter === 'all') return true;
@@ -294,6 +327,101 @@ const RegulatoryDashboard: React.FC = () => {
         </Grid>
       </Grid>
 
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12}>
+          <Card>
+            <CardContent>
+              <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                <Typography variant="h6">
+                  <MonitorHeart color="primary" sx={{ mr: 1, verticalAlign: 'middle' }} />
+                  Monitoring Health (Last 24h)
+                </Typography>
+                <Box display="flex" gap={1}>
+                  <Button size="small" onClick={() => queryClient.invalidateQueries({ queryKey: ['monitoring-runs-dashboard'] })}>
+                    Refresh
+                  </Button>
+                  <Button size="small" color="error" variant="outlined" onClick={() => navigate('/monitoring?status=failed')}>
+                    Open Failed Runs
+                  </Button>
+                  <Button size="small" variant="outlined" onClick={() => navigate('/monitoring')}>
+                    View Monitoring
+                  </Button>
+                </Box>
+              </Box>
+
+              {monitoringRunsLoading || monitoringSummaryLoading ? (
+                <CircularProgress size={24} />
+              ) : (
+                <Grid container spacing={2}>
+                  {activeMonitoringRun && (
+                    <Grid item xs={12}>
+                      <Alert severity="info" icon={<CircularProgress size={16} />}>
+                        Job in progress: {activeMonitoringRun.runType} monitoring started{' '}
+                        {new Date(activeMonitoringRun.startedAt).toLocaleTimeString()}.
+                      </Alert>
+                    </Grid>
+                  )}
+                  <Grid item xs={12} md={4}>
+                    <Paper variant="outlined" sx={{ p: 2 }}>
+                      <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                        Federal Monitor
+                      </Typography>
+                      <MonitoringRunHealthChip run={latestFederalRun} />
+                      <Typography variant="body2" sx={{ mt: 1 }}>
+                        Last run: {formatRunTime(latestFederalRun?.startedAt)}
+                      </Typography>
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <Paper variant="outlined" sx={{ p: 2 }}>
+                      <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                        State Monitor
+                      </Typography>
+                      <MonitoringRunHealthChip run={latestStateRun} />
+                      <Typography variant="body2" sx={{ mt: 1 }}>
+                        Last run: {formatRunTime(latestStateRun?.startedAt)}
+                      </Typography>
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <Paper variant="outlined" sx={{ p: 2 }}>
+                      <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                        Run Totals (24h)
+                      </Typography>
+                      <Typography variant="body2">Runs: {monitoringSummary?.totalRuns ?? 0}</Typography>
+                      <Typography variant="body2">Fetched: {monitoringSummary?.totalDocumentsFetched ?? 0}</Typography>
+                      <Typography variant="body2">Added: {monitoringSummary?.totalDocumentsAdded ?? 0}</Typography>
+                      <Typography variant="body2">Failures: {monitoringSummary?.totalFailures ?? 0}</Typography>
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Failures by Source
+                    </Typography>
+                    {sourceFailures.length > 0 ? (
+                      <Box display="flex" gap={1} flexWrap="wrap">
+                        {sourceFailures.map(({ source, metrics }) => (
+                          <Chip
+                            key={source}
+                            color="error"
+                            variant="outlined"
+                            label={`${source}: ${metrics.failures} failure${metrics.failures === 1 ? '' : 's'}`}
+                          />
+                        ))}
+                      </Box>
+                    ) : (
+                      <Typography color="textSecondary" variant="body2">
+                        No source failures in the selected window.
+                      </Typography>
+                    )}
+                  </Grid>
+                </Grid>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
       {/* Recent Documents Table */}
       <Card>
         <CardContent>
@@ -467,6 +595,30 @@ const AnalysisProviderChip: React.FC<{ provider?: string; status?: string }> = (
   }
 
   return <Chip label={provider.toUpperCase()} size="small" variant="outlined" />;
+};
+
+const MonitoringRunHealthChip: React.FC<{ run?: MonitoringRun }> = ({ run }) => {
+  if (!run) {
+    return <Chip size="small" label="No Data" variant="outlined" />;
+  }
+
+  if (run.status === 'completed' && run.failureCount === 0) {
+    return <Chip size="small" label="Healthy" color="success" />;
+  }
+
+  if (run.status === 'failed') {
+    return <Chip size="small" label="Failed" color="error" />;
+  }
+
+  return <Chip size="small" label="Degraded" color="warning" />;
+};
+
+const formatRunTime = (value?: string): string => {
+  if (!value) {
+    return 'No runs yet';
+  }
+
+  return new Date(value).toLocaleString();
 };
 
 export default RegulatoryDashboard;

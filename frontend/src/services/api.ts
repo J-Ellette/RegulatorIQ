@@ -8,6 +8,14 @@ import type {
   ComplianceFrameworkDetail,
   ChangeImpactAssessment,
   RegulatoryAlert,
+  MonitoringRun,
+  MonitoringSummary,
+  MonitoringJobStatus,
+  MonitoringJobControlResponse,
+  MonitoringJobAuditEntry,
+  MonitoringJobAuditSummary,
+  TriggerMonitoringRunResponse,
+  TriggerMonitoringJobResponse,
   PagedResult,
   DashboardStats,
   DocumentSearchRequest,
@@ -22,6 +30,17 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+const resolveAuditActor = (): string => {
+  const candidates = [
+    localStorage.getItem('currentUser'),
+    localStorage.getItem('authUser'),
+    localStorage.getItem('username'),
+  ];
+
+  const actor = candidates.find((candidate) => !!candidate?.trim());
+  return actor?.trim() ?? 'web-ui';
+};
 
 // Request interceptor for auth tokens
 apiClient.interceptors.request.use(
@@ -140,6 +159,102 @@ export const regulatoryApi = {
     const response = await apiClient.post(`/regulatorydocuments/alerts/${alertId}/resolve`, {
       resolvedBy,
       resolutionNotes,
+    });
+    return response.data;
+  },
+
+  // Monitoring
+  getMonitoringRuns: async (params?: {
+    runType?: string;
+    status?: string;
+    take?: number;
+  }): Promise<MonitoringRun[]> => {
+    const response = await apiClient.get('/monitoring/runs', { params });
+    return response.data;
+  },
+
+  getMonitoringSummary: async (hours: number = 24): Promise<MonitoringSummary> => {
+    const response = await apiClient.get('/monitoring/summary', {
+      params: { hours },
+    });
+    return response.data;
+  },
+
+  triggerMonitoringRun: async (
+    runType: 'all' | 'federal' | 'state'
+  ): Promise<TriggerMonitoringRunResponse> => {
+    const response = await apiClient.post('/monitoring/trigger', {
+      runType,
+      actedBy: resolveAuditActor(),
+    });
+    return response.data;
+  },
+
+  getMonitoringJobs: async (): Promise<MonitoringJobStatus[]> => {
+    const response = await apiClient.get('/monitoring/jobs');
+    return response.data;
+  },
+
+  getMonitoringJobAudit: async (params?: {
+    jobId?: string;
+    action?: string;
+    actor?: string;
+    reason?: string;
+    fromUtc?: string;
+    toUtc?: string;
+    sortBy?: string;
+    sortDir?: 'asc' | 'desc';
+    skip?: number;
+    take?: number;
+  }): Promise<PagedResult<MonitoringJobAuditEntry>> => {
+    const response = await apiClient.get('/monitoring/jobs/audit', { params });
+    return response.data;
+  },
+
+  getMonitoringJobAuditSummary: async (params?: {
+    jobId?: string;
+    actor?: string;
+    reason?: string;
+    fromUtc?: string;
+    toUtc?: string;
+  }): Promise<MonitoringJobAuditSummary> => {
+    const response = await apiClient.get('/monitoring/jobs/audit/summary', { params });
+    return response.data;
+  },
+
+  exportMonitoringJobAuditCsv: async (params?: {
+    jobId?: string;
+    action?: string;
+    actor?: string;
+    reason?: string;
+    fromUtc?: string;
+    toUtc?: string;
+    take?: number;
+  }): Promise<Blob> => {
+    const response = await apiClient.get('/monitoring/jobs/audit/export', {
+      params,
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  triggerMonitoringJob: async (jobId: string): Promise<TriggerMonitoringJobResponse> => {
+    const response = await apiClient.post(`/monitoring/jobs/${encodeURIComponent(jobId)}/trigger`, {
+      actedBy: resolveAuditActor(),
+    });
+    return response.data;
+  },
+
+  pauseMonitoringJob: async (jobId: string): Promise<MonitoringJobControlResponse> => {
+    const response = await apiClient.post(`/monitoring/jobs/${encodeURIComponent(jobId)}/pause`, {
+      actedBy: resolveAuditActor(),
+    });
+    return response.data;
+  },
+
+  resumeMonitoringJob: async (jobId: string): Promise<MonitoringJobControlResponse> => {
+    const response = await apiClient.post(`/monitoring/jobs/${encodeURIComponent(jobId)}/resume`, {
+      actedBy: resolveAuditActor(),
     });
     return response.data;
   },
