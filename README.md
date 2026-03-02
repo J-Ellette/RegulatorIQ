@@ -193,9 +193,9 @@ Note: `react-scripts@5` can conflict with newer TypeScript/Node combinations. If
 - `POST /api/monitoring/jobs/{jobId}/trigger`
 - `POST /api/monitoring/jobs/{jobId}/pause`
 - `POST /api/monitoring/jobs/{jobId}/resume`
-- `GET /api/monitoring/jobs/audit?jobId={jobId}&action={action}&actor={actor}&fromUtc={isoUtc}&toUtc={isoUtc}&sortBy={createdAt|action|actor|job}&sortDir={asc|desc}&skip=0&take=100`
-- `GET /api/monitoring/jobs/audit/summary?jobId={jobId}&actor={actor}&fromUtc={isoUtc}&toUtc={isoUtc}`
-- `GET /api/monitoring/jobs/audit/export?jobId={jobId}&action={action}&actor={actor}&fromUtc={isoUtc}&toUtc={isoUtc}&take=5000` (CSV)
+- `GET /api/monitoring/jobs/audit?jobId={jobId}&action={action}&actor={actor}&reason={reason}&fromUtc={isoUtc}&toUtc={isoUtc}&sortBy={createdAt|action|actor|job}&sortDir={asc|desc}&skip=0&take=100`
+- `GET /api/monitoring/jobs/audit/summary?jobId={jobId}&actor={actor}&reason={reason}&fromUtc={isoUtc}&toUtc={isoUtc}`
+- `GET /api/monitoring/jobs/audit/export?jobId={jobId}&action={action}&actor={actor}&reason={reason}&fromUtc={isoUtc}&toUtc={isoUtc}&take=5000` (CSV)
 
 Each monitoring action endpoint accepts optional actor metadata in body:
 
@@ -218,7 +218,7 @@ Returns execution history and operational metrics including:
 Frontend route:
 
 - `/monitoring` — dedicated operations view with run history filters, expandable source-level metrics, per-job actions (`Trigger now`, `Pause`, `Resume`), and a Job Action Audit panel (action/actor/time/reason).
-- `/monitoring` query params now support sharing operational context, including audit filters/paging/sort: `auditJob`, `auditAction`, `auditActor`, `auditWindow`, `auditSort`, `auditDir`, `auditPage`, `auditPageSize`.
+- `/monitoring` query params now support sharing operational context, including audit filters/paging/sort: `auditJob`, `auditAction`, `auditActor`, `auditReason`, `auditWindow`, `auditSort`, `auditDir`, `auditPage`, `auditPageSize`.
 - `/monitoring` includes a `Copy View Link` action to share the current route + query state.
 - `/monitoring` Job Action Audit panel includes `Export CSV` for the active audit filters/window.
 - `/monitoring` Job Action Audit panel includes action breakdown chips (`Total`, `Triggered`, `Paused`, `Resumed`) for current audit filters/window.
