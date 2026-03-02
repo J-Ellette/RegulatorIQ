@@ -229,6 +229,110 @@ class FederalRegulatoryMonitor:
 
         return min(score, 20)
 
+    async def monitor_doe_regulations(self) -> List[Dict[str, Any]]:
+        """Monitor Department of Energy for natural gas regulations"""
+
+        api_url = "https://www.federalregister.gov/api/v1/documents.json"
+
+        params = {
+            'conditions[agencies][]': ['energy-department'],
+            'conditions[term]': 'natural gas OR LNG OR pipeline OR methane',
+            'conditions[type][]': ['RULE', 'PRORULE', 'NOTICE'],
+            'conditions[publication_date][gte]': self._get_last_check_date(),
+            'order': 'newest',
+            'per_page': 50,
+            'fields[]': [
+                'title', 'abstract', 'html_url', 'pdf_url',
+                'publication_date', 'agencies', 'docket_id'
+            ]
+        }
+
+        regulations = []
+
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(api_url, params=params, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        regulations = self._parse_federal_register_docs(data.get('results', []))
+                        for reg in regulations:
+                            reg['source'] = 'DOE'
+            except Exception as e:
+                print(f"Error fetching DOE regulations: {e}")
+
+        return regulations
+
+    async def monitor_epa_regulations(self) -> List[Dict[str, Any]]:
+        """Monitor Environmental Protection Agency for natural gas regulations"""
+
+        api_url = "https://www.federalregister.gov/api/v1/documents.json"
+
+        params = {
+            'conditions[agencies][]': ['environmental-protection-agency'],
+            'conditions[term]': 'natural gas OR pipeline OR methane emissions OR LNG',
+            'conditions[type][]': ['RULE', 'PRORULE', 'NOTICE'],
+            'conditions[publication_date][gte]': self._get_last_check_date(),
+            'order': 'newest',
+            'per_page': 50,
+            'fields[]': [
+                'title', 'abstract', 'html_url', 'pdf_url',
+                'publication_date', 'agencies', 'docket_id'
+            ]
+        }
+
+        regulations = []
+
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(api_url, params=params, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        regulations = self._parse_federal_register_docs(data.get('results', []))
+                        for reg in regulations:
+                            reg['source'] = 'EPA'
+            except Exception as e:
+                print(f"Error fetching EPA regulations: {e}")
+
+        return regulations
+
+    async def monitor_phmsa_regulations(self) -> List[Dict[str, Any]]:
+        """Monitor Pipeline and Hazardous Materials Safety Administration for regulations"""
+
+        api_url = "https://www.federalregister.gov/api/v1/documents.json"
+
+        params = {
+            'conditions[agencies][]': [
+                'pipeline-and-hazardous-materials-safety-administration',
+                'transportation-department'
+            ],
+            'conditions[term]': 'pipeline safety OR natural gas OR hazardous materials',
+            'conditions[type][]': ['RULE', 'PRORULE', 'NOTICE'],
+            'conditions[publication_date][gte]': self._get_last_check_date(),
+            'order': 'newest',
+            'per_page': 50,
+            'fields[]': [
+                'title', 'abstract', 'html_url', 'pdf_url',
+                'publication_date', 'agencies', 'docket_id'
+            ]
+        }
+
+        regulations = []
+
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(api_url, params=params, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        regulations = self._parse_federal_register_docs(data.get('results', []))
+                        for reg in regulations:
+                            reg['source'] = 'PHMSA'
+                            # PHMSA pipeline safety rules get higher priority
+                            reg['priority_score'] = min(reg.get('priority_score', 0) + 3, 20)
+            except Exception as e:
+                print(f"Error fetching PHMSA regulations: {e}")
+
+        return regulations
+
     def _get_last_check_date(self) -> str:
         if self._last_check_date:
             return self._last_check_date
