@@ -96,6 +96,28 @@ namespace RegulatorIQ.Controllers
             }
         }
 
+        [HttpPut("{id}/lifecycle")]
+        public async Task<ActionResult<ComplianceFrameworkDto>> UpdateLifecycle(
+            Guid id,
+            [FromBody] FrameworkLifecycleUpdateRequest request)
+        {
+            try
+            {
+                var framework = await _frameworkService.UpdateLifecycleAsync(id, request);
+                if (framework == null)
+                {
+                    return NotFound($"Framework with ID {id} not found");
+                }
+
+                return Ok(framework);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating lifecycle for framework {FrameworkId}", id);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
         [HttpPost("{id}/impact-assessment")]
         public async Task<ActionResult<ChangeImpactAssessmentDto>> AssessImpact(
             Guid id,

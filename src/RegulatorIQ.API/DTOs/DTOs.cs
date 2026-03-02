@@ -20,6 +20,7 @@ namespace RegulatorIQ.DTOs
         public DateTime CreatedAt { get; set; }
         public AgencyDto? Agency { get; set; }
         public string? AnalysisStatus { get; set; }
+        public string? AnalysisProvider { get; set; }
     }
 
     public class RegulatoryDocumentDetailDto : RegulatoryDocumentDto
@@ -63,6 +64,7 @@ namespace RegulatorIQ.DTOs
         public string[]? RelatedRegulations { get; set; }
         public decimal ConfidenceScore { get; set; }
         public DateTime AnalysisDate { get; set; }
+        public string? AnalysisProvider { get; set; }
         public string? AnalyzerVersion { get; set; }
     }
 
@@ -90,9 +92,11 @@ namespace RegulatorIQ.DTOs
         public string? Description { get; set; }
         public string[]? IndustrySegments { get; set; }
         public string[]? GeographicScope { get; set; }
+        public string Status { get; set; } = "active";
+        public string? Owner { get; set; }
+        public DateTime? NextReviewDate { get; set; }
         public DateTime LastUpdated { get; set; }
         public DateTime CreatedAt { get; set; }
-        public string? Status { get; set; }
     }
 
     public class ComplianceFrameworkDetailDto : ComplianceFrameworkDto
@@ -146,6 +150,9 @@ namespace RegulatorIQ.DTOs
         public DateTime CreatedAt { get; set; }
         public DateTime? AcknowledgedAt { get; set; }
         public string? AcknowledgedBy { get; set; }
+        public DateTime? ResolvedAt { get; set; }
+        public string? ResolvedBy { get; set; }
+        public string? ResolutionNotes { get; set; }
         public RegulatoryDocumentDto? Document { get; set; }
     }
 
@@ -208,6 +215,16 @@ namespace RegulatorIQ.DTOs
         public string[]? IndustrySegments { get; set; }
         public string[]? GeographicScope { get; set; }
         public object? FrameworkData { get; set; }
+        public string? Status { get; set; }
+        public string? Owner { get; set; }
+        public DateTime? NextReviewDate { get; set; }
+    }
+
+    public class FrameworkLifecycleUpdateRequest
+    {
+        public string Status { get; set; } = "active";
+        public string? Owner { get; set; }
+        public DateTime? NextReviewDate { get; set; }
     }
 
     public class ImpactAssessmentRequest
@@ -240,6 +257,17 @@ namespace RegulatorIQ.DTOs
     public class BulkAnalysisRequest
     {
         public List<Guid> DocumentIds { get; set; } = new();
+    }
+
+    public class AcknowledgeAlertRequest
+    {
+        public string? AcknowledgedBy { get; set; }
+    }
+
+    public class ResolveAlertRequest
+    {
+        public string? ResolvedBy { get; set; }
+        public string? ResolutionNotes { get; set; }
     }
 
     public class BulkAnalysisResult

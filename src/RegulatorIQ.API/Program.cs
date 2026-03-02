@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using RegulatorIQ.Data;
 using RegulatorIQ.Services;
+using RegulatorIQ.Services.Analysis;
 using Hangfire;
 using Hangfire.PostgreSql;
+using RegulatorIQ.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,9 +29,12 @@ builder.Services.AddScoped<IComplianceFrameworkService, ComplianceFrameworkServi
 builder.Services.AddScoped<IDocumentAnalysisService, DocumentAnalysisService>();
 builder.Services.AddScoped<IChangeImpactService, ChangeImpactService>();
 builder.Services.AddScoped<IAgencyService, AgencyService>();
+builder.Services.AddScoped<IAIAnalysisProvider, AIAnalysisProvider>();
+builder.Services.AddScoped<IRulesAnalysisProvider, RulesAnalysisProvider>();
 
 // HTTP client for ML services
 builder.Services.AddHttpClient("MLServices");
+builder.Services.AddSignalR();
 
 // Redis
 builder.Services.AddStackExchangeRedisCache(options =>
@@ -74,6 +79,7 @@ app.UseAuthorization();
 app.UseHangfireDashboard("/hangfire");
 
 app.MapControllers();
+app.MapHub<NotificationsHub>("/hubs/notifications");
 
 // Health check endpoint
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));

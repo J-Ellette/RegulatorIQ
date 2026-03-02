@@ -1,6 +1,7 @@
 using RegulatorIQ.Data;
 using RegulatorIQ.Models;
 using RegulatorIQ.DTOs;
+using RegulatorIQ.Services.Analysis;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
@@ -16,18 +17,21 @@ namespace RegulatorIQ.Services
     public class DocumentAnalysisService : IDocumentAnalysisService
     {
         private readonly RegulatorIQContext _context;
-        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IAIAnalysisProvider _aiAnalysisProvider;
+        private readonly IRulesAnalysisProvider _rulesAnalysisProvider;
         private readonly IConfiguration _configuration;
         private readonly ILogger<DocumentAnalysisService> _logger;
 
         public DocumentAnalysisService(
             RegulatorIQContext context,
-            IHttpClientFactory httpClientFactory,
+            IAIAnalysisProvider aiAnalysisProvider,
+            IRulesAnalysisProvider rulesAnalysisProvider,
             IConfiguration configuration,
             ILogger<DocumentAnalysisService> logger)
         {
             _context = context;
-            _httpClientFactory = httpClientFactory;
+            _aiAnalysisProvider = aiAnalysisProvider;
+            _rulesAnalysisProvider = rulesAnalysisProvider;
             _configuration = configuration;
             _logger = logger;
         }
@@ -39,34 +43,11 @@ namespace RegulatorIQ.Services
 
             try
             {
-                var mlServiceUrl = _configuration["MLServices:BaseUrl"] ?? "http://ml-services:8000";
-                var client = _httpClientFactory.CreateClient("MLServices");
-
-                var requestPayload = new
-                {
-                    document_id = documentId.ToString(),
-                    content = document.ProcessedContent ?? document.RawContent ?? document.Title,
-                    document_type = document.DocumentType,
-                    title = document.Title
-                };
-
-                var response = await client.PostAsJsonAsync(
-                    $"{mlServiceUrl}/analyze",
-                    requestPayload);
-
                 DocumentAnalysis analysis;
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var mlResult = await response.Content.ReadFromJsonAsync<MlAnalysisResult>();
-                    analysis = MapMlResultToAnalysis(documentId, mlResult);
-                }
-                else
-                {
-                    _logger.LogWarning("ML service returned {StatusCode} for document {DocumentId}",
-                        response.StatusCode, documentId);
-                    analysis = CreateDefaultAnalysis(documentId, document);
-                }
+                var providerResult = await AnalyzeWithConfiguredModeAsync(document, documentId);
+                analysis = providerResult != null
+                    ? MapProviderResultToAnalysis(documentId, providerResult)
+                    : CreateDefaultAnalysis(documentId, document);
 
                 // Remove old analysis if exists
                 var existing = await _context.DocumentAnalyses
@@ -89,6 +70,43 @@ namespace RegulatorIQ.Services
                 await _context.SaveChangesAsync();
 
                 return MapToDto(fallback);
+            }
+        }
+
+        private async Task<AnalysisProviderResult?> AnalyzeWithConfiguredModeAsync(RegulatoryDocument document, Guid documentId)
+        {
+            var mode = (_configuration["Analysis:Mode"] ?? "Auto").Trim().ToLowerInvariant();
+
+            switch (mode)
+            {
+                case "ai":
+                    return await TryAiAsync(document, documentId);
+
+                case "rules":
+                    return await _rulesAnalysisProvider.AnalyzeAsync(document);
+
+                default:
+                    var aiResult = await TryAiAsync(document, documentId);
+                    if (aiResult != null)
+                    {
+                        return aiResult;
+                    }
+
+                    _logger.LogInformation("Falling back to rules analysis for document {DocumentId}", documentId);
+                    return await _rulesAnalysisProvider.AnalyzeAsync(document);
+            }
+        }
+
+        private async Task<AnalysisProviderResult?> TryAiAsync(RegulatoryDocument document, Guid documentId)
+        {
+            try
+            {
+                return await _aiAnalysisProvider.AnalyzeAsync(document);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "AI analysis failed for document {DocumentId}", documentId);
+                return null;
             }
         }
 
@@ -123,30 +141,30 @@ namespace RegulatorIQ.Services
             return result;
         }
 
-        private DocumentAnalysis MapMlResultToAnalysis(Guid documentId, MlAnalysisResult? mlResult)
+        private DocumentAnalysis MapProviderResultToAnalysis(Guid documentId, AnalysisProviderResult providerResult)
         {
             return new DocumentAnalysis
             {
                 Id = Guid.NewGuid(),
                 DocumentId = documentId,
                 AnalysisVersion = 1,
-                Classification = mlResult?.Classification != null
-                    ? JsonSerializer.Serialize(mlResult.Classification) : null,
-                EntitiesExtracted = mlResult?.Entities != null
-                    ? JsonSerializer.Serialize(mlResult.Entities) : null,
-                ComplianceRequirements = mlResult?.ComplianceRequirements != null
-                    ? JsonSerializer.Serialize(mlResult.ComplianceRequirements) : null,
-                ImpactAssessment = mlResult?.ImpactAssessment != null
-                    ? JsonSerializer.Serialize(mlResult.ImpactAssessment) : null,
-                TimelineAnalysis = mlResult?.TimelineAnalysis != null
-                    ? JsonSerializer.Serialize(mlResult.TimelineAnalysis) : null,
-                AffectedParties = mlResult?.AffectedParties?.ToArray(),
-                Summary = mlResult?.Summary,
-                ActionableItems = mlResult?.ActionableItems != null
-                    ? JsonSerializer.Serialize(mlResult.ActionableItems) : null,
-                RelatedRegulations = mlResult?.RelatedRegulations?.ToArray(),
-                ConfidenceScore = (decimal)(mlResult?.ConfidenceScore ?? 0.5),
-                AnalyzerVersion = "1.0",
+                Classification = providerResult.Classification != null
+                    ? JsonSerializer.Serialize(providerResult.Classification) : null,
+                EntitiesExtracted = providerResult.Entities != null
+                    ? JsonSerializer.Serialize(providerResult.Entities) : null,
+                ComplianceRequirements = providerResult.ComplianceRequirements != null
+                    ? JsonSerializer.Serialize(providerResult.ComplianceRequirements) : null,
+                ImpactAssessment = providerResult.ImpactAssessment != null
+                    ? JsonSerializer.Serialize(providerResult.ImpactAssessment) : null,
+                TimelineAnalysis = providerResult.TimelineAnalysis != null
+                    ? JsonSerializer.Serialize(providerResult.TimelineAnalysis) : null,
+                AffectedParties = providerResult.AffectedParties?.ToArray(),
+                Summary = providerResult.Summary,
+                ActionableItems = providerResult.ActionableItems != null
+                    ? JsonSerializer.Serialize(providerResult.ActionableItems) : null,
+                RelatedRegulations = providerResult.RelatedRegulations?.ToArray(),
+                ConfidenceScore = (decimal)(providerResult.ConfidenceScore ?? 0.5),
+                AnalyzerVersion = providerResult.ProviderName,
                 AnalysisDate = DateTime.UtcNow
             };
         }
@@ -189,22 +207,10 @@ namespace RegulatorIQ.Services
                 RelatedRegulations = a.RelatedRegulations,
                 ConfidenceScore = a.ConfidenceScore,
                 AnalysisDate = a.AnalysisDate,
+                AnalysisProvider = a.AnalyzerVersion,
                 AnalyzerVersion = a.AnalyzerVersion
             };
         }
     }
 
-    internal class MlAnalysisResult
-    {
-        public object? Classification { get; set; }
-        public object? Entities { get; set; }
-        public List<object>? ComplianceRequirements { get; set; }
-        public object? ImpactAssessment { get; set; }
-        public object? TimelineAnalysis { get; set; }
-        public List<string>? AffectedParties { get; set; }
-        public string? Summary { get; set; }
-        public object? ActionableItems { get; set; }
-        public List<string>? RelatedRegulations { get; set; }
-        public double? ConfidenceScore { get; set; }
-    }
 }

@@ -26,6 +26,7 @@ export interface RegulatoryDocument {
   createdAt: string;
   agency?: RegulatoryAgency;
   analysisStatus?: string;
+  analysisProvider?: string;
 }
 
 export interface RegulatoryDocumentDetail extends RegulatoryDocument {
@@ -49,6 +50,7 @@ export interface DocumentAnalysis {
   relatedRegulations?: string[];
   confidenceScore: number;
   analysisDate: string;
+  analysisProvider?: string;
   analyzerVersion?: string;
 }
 
@@ -113,9 +115,11 @@ export interface ComplianceFramework {
   description?: string;
   industrySegments?: string[];
   geographicScope?: string[];
+  status: string;
+  owner?: string;
+  nextReviewDate?: string;
   lastUpdated: string;
   createdAt: string;
-  status?: string;
 }
 
 export interface ComplianceFrameworkDetail extends ComplianceFramework {
@@ -157,7 +161,7 @@ export interface RegulatoryAlert {
   alertType?: string;
   documentId?: string;
   frameworkId?: string;
-  severity?: 'error' | 'warning' | 'info' | 'success';
+  severity?: string;
   title?: string;
   message?: string;
   alertData?: Record<string, unknown>;
@@ -165,6 +169,9 @@ export interface RegulatoryAlert {
   createdAt: string;
   acknowledgedAt?: string;
   acknowledgedBy?: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+  resolutionNotes?: string;
   document?: RegulatoryDocument;
 }
 

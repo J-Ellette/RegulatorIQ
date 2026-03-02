@@ -3,6 +3,9 @@ using RegulatorIQ.Models;
 using RegulatorIQ.DTOs;
 using Microsoft.EntityFrameworkCore;
 using AutoMapper;
+using Microsoft.AspNetCore.SignalR;
+using RegulatorIQ.Hubs;
+using System.Text.Json;
 
 namespace RegulatorIQ.Services
 {
@@ -12,6 +15,8 @@ namespace RegulatorIQ.Services
         Task<RegulatoryDocumentDetailDto?> GetDocumentByIdAsync(Guid id);
         Task<List<RegulatoryDocumentDto>> FullTextSearchAsync(string query, DocumentFilter filter);
         Task<List<RegulatoryAlertDto>> GetRegulatoryAlertsAsync(AlertFilter filter);
+        Task<RegulatoryAlertDto?> AcknowledgeAlertAsync(Guid alertId, string? acknowledgedBy);
+        Task<RegulatoryAlertDto?> ResolveAlertAsync(Guid alertId, string? resolvedBy, string? resolutionNotes);
         Task<RegulatoryDocument> CreateDocumentAsync(CreateDocumentRequest request);
         Task UpdateDocumentAsync(Guid id, UpdateDocumentRequest request);
         Task<DashboardStats> GetDashboardStatsAsync(string timeframe);
@@ -22,15 +27,18 @@ namespace RegulatorIQ.Services
         private readonly RegulatorIQContext _context;
         private readonly IMapper _mapper;
         private readonly ILogger<RegulatoryDocumentService> _logger;
+        private readonly IHubContext<NotificationsHub> _hubContext;
 
         public RegulatoryDocumentService(
             RegulatorIQContext context,
             IMapper mapper,
-            ILogger<RegulatoryDocumentService> logger)
+            ILogger<RegulatoryDocumentService> logger,
+            IHubContext<NotificationsHub> hubContext)
         {
             _context = context;
             _mapper = mapper;
             _logger = logger;
+            _hubContext = hubContext;
         }
 
         public async Task<PagedResult<RegulatoryDocumentDto>> SearchDocumentsAsync(
@@ -81,7 +89,13 @@ namespace RegulatorIQ.Services
                 .Take(request.PageSize)
                 .ToListAsync();
 
-            var documentDtos = documents.Select(d => MapToDto(d)).ToList();
+            var latestAnalysisByDocumentId = await GetLatestAnalysisByDocumentIdsAsync(documents.Select(d => d.Id));
+            var documentDtos = documents
+                .Select(d => MapToDto(
+                    d,
+                    latestAnalysisByDocumentId.TryGetValue(d.Id, out var latest) ? latest.Provider : null,
+                    latestAnalysisByDocumentId.ContainsKey(d.Id)))
+                .ToList();
 
             return new PagedResult<RegulatoryDocumentDto>
             {
@@ -130,7 +144,11 @@ namespace RegulatorIQ.Services
                     AgencyType = document.Agency.AgencyType,
                     Jurisdiction = document.Agency.Jurisdiction
                 } : null,
-                AnalysisStatus = document.Analyses.Any() ? "completed" : "pending"
+                AnalysisStatus = document.Analyses.Any() ? "completed" : "pending",
+                AnalysisProvider = document.Analyses
+                    .OrderByDescending(a => a.AnalysisDate)
+                    .Select(a => a.AnalyzerVersion)
+                    .FirstOrDefault()
             };
         }
 
@@ -159,7 +177,13 @@ namespace RegulatorIQ.Services
                 .Take(100)
                 .ToListAsync();
 
-            return results.Select(d => MapToDto(d)).ToList();
+            var latestAnalysisByDocumentId = await GetLatestAnalysisByDocumentIdsAsync(results.Select(d => d.Id));
+            return results
+                .Select(d => MapToDto(
+                    d,
+                    latestAnalysisByDocumentId.TryGetValue(d.Id, out var latest) ? latest.Provider : null,
+                    latestAnalysisByDocumentId.ContainsKey(d.Id)))
+                .ToList();
         }
 
         public async Task<List<RegulatoryAlertDto>> GetRegulatoryAlertsAsync(AlertFilter filter)
@@ -196,8 +220,141 @@ namespace RegulatorIQ.Services
                 CreatedAt = a.CreatedAt,
                 AcknowledgedAt = a.AcknowledgedAt,
                 AcknowledgedBy = a.AcknowledgedBy,
+                ResolvedAt = a.ResolvedAt,
+                ResolvedBy = a.ResolvedBy,
+                ResolutionNotes = a.ResolutionNotes,
                 Document = a.Document != null ? MapToDto(a.Document) : null
             }).ToList();
+        }
+
+        public async Task<RegulatoryAlertDto?> AcknowledgeAlertAsync(Guid alertId, string? acknowledgedBy)
+        {
+            var alert = await _context.RegulatoryAlerts
+                .Include(a => a.Document)
+                .ThenInclude(d => d!.Agency)
+                .FirstOrDefaultAsync(a => a.Id == alertId);
+
+            if (alert == null)
+            {
+                return null;
+            }
+
+            if (alert.Status == "acknowledged")
+            {
+                return MapAlertToDto(alert);
+            }
+
+            var oldData = JsonSerializer.Serialize(new
+            {
+                alert.Status,
+                alert.AcknowledgedAt,
+                alert.AcknowledgedBy
+            });
+
+            alert.Status = "acknowledged";
+            alert.AcknowledgedAt = DateTime.UtcNow;
+            alert.AcknowledgedBy = string.IsNullOrWhiteSpace(acknowledgedBy) ? "system" : acknowledgedBy.Trim();
+
+            var newData = JsonSerializer.Serialize(new
+            {
+                alert.Status,
+                alert.AcknowledgedAt,
+                alert.AcknowledgedBy
+            });
+
+            _context.RegulatoryAuditLogs.Add(new RegulatoryAuditLog
+            {
+                Id = Guid.NewGuid(),
+                Action = "alert_acknowledged",
+                EntityType = "regulatory_alert",
+                EntityId = alert.Id,
+                OldData = oldData,
+                NewData = newData,
+                ChangedBy = alert.AcknowledgedBy,
+                ChangeReason = "Alert acknowledged by user",
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+
+            await _hubContext.Clients.All.SendAsync("alertAcknowledged", new
+            {
+                alertId = alert.Id,
+                title = alert.Title,
+                frameworkId = alert.FrameworkId,
+                acknowledgedBy = alert.AcknowledgedBy,
+                acknowledgedAt = alert.AcknowledgedAt
+            });
+
+            return MapAlertToDto(alert);
+        }
+
+        public async Task<RegulatoryAlertDto?> ResolveAlertAsync(Guid alertId, string? resolvedBy, string? resolutionNotes)
+        {
+            var alert = await _context.RegulatoryAlerts
+                .Include(a => a.Document)
+                .ThenInclude(d => d!.Agency)
+                .FirstOrDefaultAsync(a => a.Id == alertId);
+
+            if (alert == null)
+            {
+                return null;
+            }
+
+            if (alert.Status == "resolved")
+            {
+                return MapAlertToDto(alert);
+            }
+
+            var oldData = JsonSerializer.Serialize(new
+            {
+                alert.Status,
+                alert.ResolvedAt,
+                alert.ResolvedBy,
+                alert.ResolutionNotes
+            });
+
+            alert.Status = "resolved";
+            alert.ResolvedAt = DateTime.UtcNow;
+            alert.ResolvedBy = string.IsNullOrWhiteSpace(resolvedBy) ? "system" : resolvedBy.Trim();
+            alert.ResolutionNotes = string.IsNullOrWhiteSpace(resolutionNotes)
+                ? "Resolved via alert workflow"
+                : resolutionNotes.Trim();
+
+            var newData = JsonSerializer.Serialize(new
+            {
+                alert.Status,
+                alert.ResolvedAt,
+                alert.ResolvedBy,
+                alert.ResolutionNotes
+            });
+
+            _context.RegulatoryAuditLogs.Add(new RegulatoryAuditLog
+            {
+                Id = Guid.NewGuid(),
+                Action = "alert_resolved",
+                EntityType = "regulatory_alert",
+                EntityId = alert.Id,
+                OldData = oldData,
+                NewData = newData,
+                ChangedBy = alert.ResolvedBy,
+                ChangeReason = alert.ResolutionNotes,
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+
+            await _hubContext.Clients.All.SendAsync("alertResolved", new
+            {
+                alertId = alert.Id,
+                title = alert.Title,
+                frameworkId = alert.FrameworkId,
+                resolvedBy = alert.ResolvedBy,
+                resolvedAt = alert.ResolvedAt,
+                resolutionNotes = alert.ResolutionNotes
+            });
+
+            return MapAlertToDto(alert);
         }
 
         public async Task<RegulatoryDocument> CreateDocumentAsync(CreateDocumentRequest request)
@@ -268,7 +425,55 @@ namespace RegulatorIQ.Services
             };
         }
 
-        private static RegulatoryDocumentDto MapToDto(RegulatoryDocument d) => new()
+        private static RegulatoryAlertDto MapAlertToDto(RegulatoryAlert alert) => new()
+        {
+            Id = alert.Id,
+            AlertType = alert.AlertType,
+            DocumentId = alert.DocumentId,
+            FrameworkId = alert.FrameworkId,
+            Severity = alert.Severity,
+            Title = alert.Title,
+            Message = alert.Message,
+            Status = alert.Status,
+            CreatedAt = alert.CreatedAt,
+            AcknowledgedAt = alert.AcknowledgedAt,
+            AcknowledgedBy = alert.AcknowledgedBy,
+            ResolvedAt = alert.ResolvedAt,
+            ResolvedBy = alert.ResolvedBy,
+            ResolutionNotes = alert.ResolutionNotes,
+            Document = alert.Document != null ? MapToDto(alert.Document) : null
+        };
+
+        private async Task<Dictionary<Guid, (string? Provider, DateTime AnalysisDate)>> GetLatestAnalysisByDocumentIdsAsync(IEnumerable<Guid> documentIds)
+        {
+            var ids = documentIds.Distinct().ToList();
+            if (ids.Count == 0)
+            {
+                return new Dictionary<Guid, (string? Provider, DateTime AnalysisDate)>();
+            }
+
+            var analyses = await _context.DocumentAnalyses
+                .Where(a => ids.Contains(a.DocumentId))
+                .OrderByDescending(a => a.AnalysisDate)
+                .Select(a => new { a.DocumentId, a.AnalyzerVersion, a.AnalysisDate })
+                .ToListAsync();
+
+            var latestByDocumentId = new Dictionary<Guid, (string? Provider, DateTime AnalysisDate)>();
+            foreach (var analysis in analyses)
+            {
+                if (!latestByDocumentId.ContainsKey(analysis.DocumentId))
+                {
+                    latestByDocumentId[analysis.DocumentId] = (analysis.AnalyzerVersion, analysis.AnalysisDate);
+                }
+            }
+
+            return latestByDocumentId;
+        }
+
+        private static RegulatoryDocumentDto MapToDto(
+            RegulatoryDocument d,
+            string? analysisProvider = null,
+            bool? hasAnalysis = null) => new()
         {
             Id = d.Id,
             DocumentId = d.DocumentId,
@@ -294,7 +499,8 @@ namespace RegulatorIQ.Services
                 AgencyType = d.Agency.AgencyType,
                 Jurisdiction = d.Agency.Jurisdiction
             } : null,
-            AnalysisStatus = d.Analyses?.Any() == true ? "completed" : "pending"
+            AnalysisStatus = (hasAnalysis ?? (d.Analyses?.Any() == true)) ? "completed" : "pending",
+            AnalysisProvider = analysisProvider
         };
     }
 }

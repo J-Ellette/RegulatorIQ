@@ -131,6 +131,50 @@ namespace RegulatorIQ.Controllers
             }
         }
 
+        [HttpPost("alerts/{id}/acknowledge")]
+        public async Task<ActionResult<RegulatoryAlertDto>> AcknowledgeAlert(
+            Guid id,
+            [FromBody] AcknowledgeAlertRequest request)
+        {
+            try
+            {
+                var alert = await _documentService.AcknowledgeAlertAsync(id, request.AcknowledgedBy);
+                if (alert == null)
+                {
+                    return NotFound($"Alert with ID {id} not found");
+                }
+
+                return Ok(alert);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error acknowledging alert {AlertId}", id);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        [HttpPost("alerts/{id}/resolve")]
+        public async Task<ActionResult<RegulatoryAlertDto>> ResolveAlert(
+            Guid id,
+            [FromBody] ResolveAlertRequest request)
+        {
+            try
+            {
+                var alert = await _documentService.ResolveAlertAsync(id, request.ResolvedBy, request.ResolutionNotes);
+                if (alert == null)
+                {
+                    return NotFound($"Alert with ID {id} not found");
+                }
+
+                return Ok(alert);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resolving alert {AlertId}", id);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
         [HttpPost("bulk-analyze")]
         public async Task<ActionResult<BulkAnalysisResult>> BulkAnalyzeDocuments(
             [FromBody] BulkAnalysisRequest request)

@@ -125,6 +125,25 @@ export const regulatoryApi = {
     return response.data;
   },
 
+  acknowledgeAlert: async (alertId: string, acknowledgedBy?: string): Promise<RegulatoryAlert> => {
+    const response = await apiClient.post(`/regulatorydocuments/alerts/${alertId}/acknowledge`, {
+      acknowledgedBy,
+    });
+    return response.data;
+  },
+
+  resolveAlert: async (
+    alertId: string,
+    resolvedBy?: string,
+    resolutionNotes?: string
+  ): Promise<RegulatoryAlert> => {
+    const response = await apiClient.post(`/regulatorydocuments/alerts/${alertId}/resolve`, {
+      resolvedBy,
+      resolutionNotes,
+    });
+    return response.data;
+  },
+
   // Compliance Frameworks
   getComplianceFrameworks: async (companyId?: string): Promise<ComplianceFramework[]> => {
     const response = await apiClient.get('/complianceframeworks', {
@@ -150,6 +169,14 @@ export const regulatoryApi = {
     data: Partial<ComplianceFramework>
   ): Promise<ComplianceFramework> => {
     const response = await apiClient.put(`/complianceframeworks/${id}`, data);
+    return response.data;
+  },
+
+  updateFrameworkLifecycle: async (
+    id: string,
+    data: { status: string; owner?: string; nextReviewDate?: string }
+  ): Promise<ComplianceFramework> => {
+    const response = await apiClient.put(`/complianceframeworks/${id}/lifecycle`, data);
     return response.data;
   },
 

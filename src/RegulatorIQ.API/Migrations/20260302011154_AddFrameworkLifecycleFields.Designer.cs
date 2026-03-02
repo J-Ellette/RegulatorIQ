@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RegulatorIQ.Data;
@@ -11,9 +12,11 @@ using RegulatorIQ.Data;
 namespace RegulatorIQ.API.Migrations
 {
     [DbContext(typeof(RegulatorIQContext))]
-    partial class RegulatorIQContextModelSnapshot : ModelSnapshot
+    [Migration("20260302011154_AddFrameworkLifecycleFields")]
+    partial class AddFrameworkLifecycleFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -372,16 +375,6 @@ namespace RegulatorIQ.API.Migrations
 
                     b.Property<string>("Message")
                         .HasColumnType("text");
-
-                    b.Property<string>("ResolutionNotes")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("ResolvedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ResolvedBy")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
 
                     b.Property<string>("Severity")
                         .HasMaxLength(20)

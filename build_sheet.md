@@ -1,4 +1,5 @@
 # RegulatorIQ: Natural Gas Regulatory Change Management Platform
+
 ## Complete Build Sheet for Automated Compliance Tracking & Framework Updates
 
 ---
@@ -16,6 +17,7 @@
 ## **Technology Stack**
 
 ### **Backend Infrastructure**
+
 ```
 Backend Stack:
 ├── .NET 8 / ASP.NET Core (Primary API)
@@ -30,6 +32,7 @@ Backend Stack:
 ```
 
 ### **AI/ML Processing Pipeline**
+
 ```
 AI/ML Stack:
 ├── Python 3.11+ with FastAPI (ML services)
@@ -43,6 +46,7 @@ AI/ML Stack:
 ```
 
 ### **Web Scraping & Data Collection**
+
 ```
 Data Collection Stack:
 ├── Scrapy (Primary web scraping framework)
@@ -56,6 +60,7 @@ Data Collection Stack:
 ```
 
 ### **Frontend & User Interface**
+
 ```
 Frontend Stack:
 ├── React 18+ with TypeScript
@@ -73,6 +78,7 @@ Frontend Stack:
 ## **Regulatory Data Sources & Monitoring**
 
 ### **Federal Level Sources**
+
 ```python
 # regulatoriq/data_sources/federal.py
 from typing import List, Dict, Any
@@ -278,6 +284,7 @@ class FederalRegulatoryMonitor:
 ```
 
 ### **State Level Sources (Texas Focus)**
+
 ```python
 # regulatoriq/data_sources/texas.py
 from typing import List, Dict, Any
@@ -498,6 +505,7 @@ class MultiStateMonitor:
 ## **AI-Powered Document Analysis**
 
 ### **Legal Document Processing Pipeline**
+
 ```python
 # regulatoriq/ai/document_analyzer.py
 import spacy
@@ -891,6 +899,7 @@ class ChangeImpactAnalyzer:
 ## **Database Schema & Data Management**
 
 ### **PostgreSQL Database Schema**
+
 ```sql
 -- Core database schema for regulatory change management
 
@@ -1124,6 +1133,7 @@ INSERT INTO regulatory_agencies (name, abbreviation, agency_type, jurisdiction, 
 ```
 
 ### **Entity Framework Core Models**
+
 ```csharp
 // Models/RegulatoryDocument.cs
 using System.ComponentModel.DataAnnotations;
@@ -1328,6 +1338,7 @@ namespace RegulatorIQ.Data
 ## **RESTful API & Services**
 
 ### **ASP.NET Core API Controllers**
+
 ```csharp
 // Controllers/RegulatoryDocumentsController.cs
 using Microsoft.AspNetCore.Mvc;
@@ -1782,6 +1793,7 @@ namespace RegulatorIQ.Services
 ## **React Frontend Implementation**
 
 ### **Main Dashboard Components**
+
 ```typescript
 // src/components/Dashboard/RegulatoryDashboard.tsx
 import React, { useState, useEffect } from 'react';
@@ -2130,6 +2142,7 @@ export default RegulatoryDashboard;
 ```
 
 ### **Document Analysis Interface**
+
 ```typescript
 // src/components/Documents/DocumentAnalysisView.tsx
 import React, { useState } from 'react';
@@ -2452,6 +2465,7 @@ export default DocumentAnalysisView;
 ## **Background Processing & Automation**
 
 ### **Hangfire Background Services**
+
 ```csharp
 // Services/BackgroundServices/RegulatoryMonitoringService.cs
 using Hangfire;
@@ -2911,6 +2925,7 @@ namespace RegulatorIQ.Services.BackgroundServices
 ## **Deployment & Infrastructure**
 
 ### **Docker Compose Configuration**
+
 ```yaml
 # docker-compose.yml
 version: '3.8'
@@ -3111,6 +3126,7 @@ networks:
 ```
 
 ### **Nginx Configuration**
+
 ```nginx
 # nginx/nginx.conf
 events {
@@ -3194,7 +3210,9 @@ http {
 ## **Development Timeline & Cost Analysis**
 
 ### **Phase 1: Core Infrastructure (Months 1-4) - $125,000**
+
 **Deliverables:**
+
 - Database schema and Entity Framework models
 - ASP.NET Core API with basic CRUD operations
 - Federal regulatory source monitoring (FERC, Federal Register, EPA)
@@ -3202,12 +3220,15 @@ http {
 - PostgreSQL setup with full-text search
 
 **Team:**
+
 - Senior Backend Developer (.NET): 3 months
 - Database Architect: 1.5 months
 - DevOps Engineer: 2 months
 
 ### **Phase 2: AI/ML Pipeline (Months 5-8) - $148,000**
+
 **Deliverables:**
+
 - Python ML services for document analysis
 - NLP pipeline with legal BERT fine-tuning
 - Compliance requirement extraction
@@ -3215,12 +3236,15 @@ http {
 - Document classification and entity extraction
 
 **Team:**
+
 - ML Engineer: 3.5 months
 - NLP Specialist: 3 months
 - Python Developer: 2.5 months
 
 ### **Phase 3: State Monitoring & Web Scraping (Months 9-12) - $118,000**
+
 **Deliverables:**
+
 - Texas Railroad Commission monitoring
 - All 50-state regulatory tracking
 - Advanced web scraping with Selenium
@@ -3228,12 +3252,15 @@ http {
 - Automated document prioritization
 
 **Team:**
+
 - Web Scraping Specialist: 3 months
 - Full-stack Developer: 2.5 months
 - QA Engineer: 1.5 months
 
 ### **Phase 4: Frontend & User Experience (Months 13-16) - $135,000**
+
 **Deliverables:**
+
 - React dashboard with Material-UI
 - Document analysis interface
 - Compliance framework management
@@ -3241,12 +3268,15 @@ http {
 - Advanced search and filtering
 
 **Team:**
+
 - Senior Frontend Developer: 3 months
 - UI/UX Designer: 2 months
 - Frontend Developer: 2.5 months
 
 ### **Phase 5: Background Processing & Automation (Months 17-20) - $112,000**
+
 **Deliverables:**
+
 - Hangfire background job processing
 - Automated compliance framework updates
 - Alert generation and notification system
@@ -3254,12 +3284,15 @@ http {
 - Performance optimization
 
 **Team:**
+
 - Backend Developer: 2.5 months
 - DevOps Engineer: 2 months
 - Performance Engineer: 1.5 months
 
 ### **Phase 6: Production & Security (Months 21-24) - $98,000**
+
 **Deliverables:**
+
 - Production deployment infrastructure
 - Security auditing and penetration testing
 - Compliance reporting features
@@ -3267,6 +3300,7 @@ http {
 - User training and onboarding
 
 **Team:**
+
 - Security Engineer: 2 months
 - DevOps Engineer: 1.5 months
 - Technical Writer: 1 month
@@ -3275,6 +3309,7 @@ http {
 ### **Total Development Cost: $736,000**
 
 ### **Annual Operating Costs: $42,000**
+
 - Cloud infrastructure (Azure/AWS): $18,000/year
 - Database hosting (managed PostgreSQL): $6,000/year
 - AI/ML API costs (OpenAI, Hugging Face): $8,000/year
@@ -3286,6 +3321,7 @@ http {
 ### **Revenue Models**
 
 **1. Subscription Tiers:**
+
 - **Starter:** $2,500/month per company (up to 5 users)
   - Federal monitoring only
   - Basic compliance tracking
@@ -3304,12 +3340,14 @@ http {
   - On-premise deployment option
 
 **2. Professional Services:**
+
 - Implementation consulting: $200-400/hour
 - Custom framework development: $25,000-75,000 per project
 - Regulatory compliance audits: $50,000-150,000 per engagement
 - Training and certification programs: $5,000-15,000 per session
 
 **3. Data & Analytics:**
+
 - Regulatory intelligence reports: $5,000-25,000 per report
 - Custom monitoring for specific regulations: $2,000-10,000/month
 - Historical regulatory database access: $500-2,000/month
@@ -3317,11 +3355,13 @@ http {
 ### **Market Analysis**
 
 **Target Market Size:**
+
 - **Primary:** 3,500+ natural gas companies in the US
 - **Secondary:** 15,000+ companies with natural gas operations
 - **Tertiary:** Regulatory consulting firms and law firms
 
 **Competitive Advantages:**
+
 - **Automated Monitoring:** Real-time tracking vs manual processes
 - **AI-Powered Analysis:** Intelligent document analysis vs human review
 - **Proactive Compliance:** Predictive alerts vs reactive responses
@@ -3329,6 +3369,7 @@ http {
 - **Multi-jurisdictional:** Federal and state coverage in one platform
 
 ### **Expected ROI for Customers**
+
 - **Compliance Officer Time Savings:** 15-25 hours/week
 - **Reduced Risk:** 50-80% reduction in missed deadlines
 - **Faster Implementation:** 60% faster compliance framework updates

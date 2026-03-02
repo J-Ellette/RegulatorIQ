@@ -206,19 +206,20 @@ const DocumentsListView: React.FC = () => {
               <TableCell>Effective Date</TableCell>
               <TableCell>Priority</TableCell>
               <TableCell>Analysis</TableCell>
+              <TableCell>Provider</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
                   <CircularProgress />
                 </TableCell>
               </TableRow>
             ) : result?.items?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
                   <Typography color="textSecondary">No documents found.</Typography>
                 </TableCell>
               </TableRow>
@@ -264,6 +265,9 @@ const DocumentsListView: React.FC = () => {
                   </TableCell>
                   <TableCell>
                     <AnalysisStatusChip status={doc.analysisStatus} />
+                  </TableCell>
+                  <TableCell>
+                    <AnalysisProviderChip provider={doc.analysisProvider} status={doc.analysisStatus} />
                   </TableCell>
                   <TableCell>
                     <Tooltip title="View Analysis">
@@ -339,6 +343,18 @@ const AnalysisStatusChip: React.FC<{ status?: string }> = ({ status }) => {
   };
 
   return <Chip {...getStatusProps(status)} size="small" />;
+};
+
+const AnalysisProviderChip: React.FC<{ provider?: string; status?: string }> = ({ provider, status }) => {
+  if (status !== 'completed') {
+    return <Chip label="—" size="small" variant="outlined" />;
+  }
+
+  if (!provider) {
+    return <Chip label="Unknown" size="small" variant="outlined" />;
+  }
+
+  return <Chip label={provider.toUpperCase()} size="small" variant="outlined" />;
 };
 
 export default DocumentsListView;

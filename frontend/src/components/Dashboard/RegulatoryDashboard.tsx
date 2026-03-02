@@ -29,6 +29,7 @@ import {
   Notifications,
   Assessment,
 } from '@mui/icons-material';
+import type { AlertColor } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { regulatoryApi } from '../../services/api';
@@ -36,6 +37,7 @@ import type { RegulatoryDocument, ComplianceFramework, RegulatoryAlert } from '.
 
 const RegulatoryDashboard: React.FC = () => {
   const [timeframe, setTimeframe] = useState<'week' | 'month' | 'quarter'>('month');
+  const [providerFilter, setProviderFilter] = useState<'all' | 'ai' | 'rules' | 'unknown'>('all');
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -59,6 +61,13 @@ const RegulatoryDashboard: React.FC = () => {
     queryFn: () => regulatoryApi.getComplianceFrameworks(),
   });
 
+  const acknowledgeAlert = useMutation({
+    mutationFn: (alertId: string) => regulatoryApi.acknowledgeAlert(alertId, 'dashboard-user'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['regulatory-alerts'] });
+    },
+  });
+
   const handleAnalyzeDocument = useMutation({
     mutationFn: (documentId: string) => regulatoryApi.analyzeDocument(documentId),
     onSuccess: () => {
@@ -67,10 +76,22 @@ const RegulatoryDashboard: React.FC = () => {
   });
 
   const handleViewDocument = (id: string) => navigate(`/documents/${id}/analysis`);
-  const handleViewAlert = (id: string) => navigate(`/alerts/${id}`);
   const handleDownloadPdf = (url?: string) => {
     if (url) window.open(url, '_blank');
   };
+
+  const filteredRecentDocuments = (recentDocuments ?? []).filter((doc) => {
+    if (providerFilter === 'all') return true;
+
+    if (providerFilter === 'unknown') {
+      return doc.analysisStatus === 'completed' && !(doc.analysisProvider ?? '').trim();
+    }
+
+    return (
+      doc.analysisStatus === 'completed' &&
+      (doc.analysisProvider ?? '').toLowerCase() === providerFilter
+    );
+  });
 
   return (
     <Box sx={{ p: 3 }}>
@@ -183,10 +204,15 @@ const RegulatoryDashboard: React.FC = () => {
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
-                <Notifications color="primary" sx={{ mr: 1, verticalAlign: 'middle' }} />
-                Active Alerts
-              </Typography>
+              <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                <Typography variant="h6">
+                  <Notifications color="primary" sx={{ mr: 1, verticalAlign: 'middle' }} />
+                  Active Alerts
+                </Typography>
+                <Button size="small" onClick={() => navigate('/alerts')}>
+                  View History
+                </Button>
+              </Box>
 
               {alertsLoading ? (
                 <CircularProgress />
@@ -195,12 +221,24 @@ const RegulatoryDashboard: React.FC = () => {
                   {alerts?.slice(0, 5).map((alert: RegulatoryAlert) => (
                     <Alert
                       key={alert.id}
-                      severity={alert.severity ?? 'info'}
+                      severity={toAlertColor(alert.severity)}
                       sx={{ mb: 1 }}
                       action={
-                        <Button size="small" onClick={() => handleViewAlert(alert.id)}>
-                          View
-                        </Button>
+                        alert.status === 'acknowledged' ? (
+                          <Chip size="small" label="Acknowledged" color="success" />
+                        ) : (
+                          <Button
+                            size="small"
+                            onClick={() => acknowledgeAlert.mutate(alert.id)}
+                            disabled={
+                              acknowledgeAlert.isPending && acknowledgeAlert.variables === alert.id
+                            }
+                          >
+                            {acknowledgeAlert.isPending && acknowledgeAlert.variables === alert.id
+                              ? 'Ack...'
+                              : 'Acknowledge'}
+                          </Button>
+                        )
                       }
                     >
                       <Typography variant="subtitle2">{alert.title}</Typography>
@@ -261,9 +299,21 @@ const RegulatoryDashboard: React.FC = () => {
         <CardContent>
           <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
             <Typography variant="h6">Recent Regulatory Documents</Typography>
-            <Button variant="outlined" onClick={() => navigate('/documents')}>
-              View All Documents
-            </Button>
+            <Box display="flex" gap={1}>
+              {(['all', 'ai', 'rules', 'unknown'] as const).map((filter) => (
+                <Button
+                  key={filter}
+                  variant={providerFilter === filter ? 'contained' : 'outlined'}
+                  size="small"
+                  onClick={() => setProviderFilter(filter)}
+                >
+                  {filter.toUpperCase()}
+                </Button>
+              ))}
+              <Button variant="outlined" onClick={() => navigate('/documents')}>
+                View All Documents
+              </Button>
+            </Box>
           </Box>
 
           <TableContainer component={Paper} variant="outlined">
@@ -277,18 +327,29 @@ const RegulatoryDashboard: React.FC = () => {
                   <TableCell>Effective Date</TableCell>
                   <TableCell>Priority</TableCell>
                   <TableCell>Status</TableCell>
+                  <TableCell>Provider</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {documentsLoading ? (
                   <TableRow>
-                    <TableCell colSpan={8} align="center">
+                    <TableCell colSpan={9} align="center">
                       <CircularProgress />
                     </TableCell>
                   </TableRow>
+                ) : filteredRecentDocuments.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} align="center">
+                      <Typography color="textSecondary">
+                        {providerFilter === 'all'
+                          ? 'No recent documents.'
+                          : `No ${providerFilter.toUpperCase()} analyses in recent documents.`}
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
                 ) : (
-                  recentDocuments?.map((doc: RegulatoryDocument) => (
+                  filteredRecentDocuments.map((doc: RegulatoryDocument) => (
                     <TableRow key={doc.id} hover>
                       <TableCell>
                         <Typography variant="body2" noWrap sx={{ maxWidth: 300 }}>
@@ -314,6 +375,9 @@ const RegulatoryDashboard: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <AnalysisStatusChip status={doc.analysisStatus} />
+                      </TableCell>
+                      <TableCell>
+                        <AnalysisProviderChip provider={doc.analysisProvider} status={doc.analysisStatus} />
                       </TableCell>
                       <TableCell>
                         <Tooltip title="View Document">
@@ -348,6 +412,22 @@ const RegulatoryDashboard: React.FC = () => {
   );
 };
 
+const toAlertColor = (severity?: string): AlertColor => {
+  switch (severity?.toLowerCase()) {
+    case 'critical':
+    case 'high':
+    case 'error':
+      return 'error';
+    case 'medium':
+    case 'warning':
+      return 'warning';
+    case 'success':
+      return 'success';
+    default:
+      return 'info';
+  }
+};
+
 const PriorityChip: React.FC<{ priority: number }> = ({ priority }) => {
   const getPriorityProps = (score: number) => {
     if (score >= 15) return { label: 'Critical', color: 'error' as const };
@@ -375,6 +455,18 @@ const AnalysisStatusChip: React.FC<{ status?: string }> = ({ status }) => {
   };
 
   return <Chip {...getStatusProps(status)} size="small" />;
+};
+
+const AnalysisProviderChip: React.FC<{ provider?: string; status?: string }> = ({ provider, status }) => {
+  if (status !== 'completed') {
+    return <Chip label="—" size="small" variant="outlined" />;
+  }
+
+  if (!provider) {
+    return <Chip label="Unknown" size="small" variant="outlined" />;
+  }
+
+  return <Chip label={provider.toUpperCase()} size="small" variant="outlined" />;
 };
 
 export default RegulatoryDashboard;

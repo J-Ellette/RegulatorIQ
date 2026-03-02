@@ -1,10 +1,15 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Provider } from 'react-redux';
-import { CircularProgress, Box } from '@mui/material';
+import { CircularProgress, Box, Snackbar, Alert } from '@mui/material';
 import { store } from './store';
+import {
+  connectNotifications,
+  subscribeToNotifications,
+  type AppNotification,
+} from './services/notifications';
 
 // Only load devtools in development
 const ReactQueryDevtools =
@@ -27,6 +32,12 @@ const DocumentsListView = React.lazy(
 );
 const ComplianceFrameworksView = React.lazy(
   () => import('./components/ComplianceFrameworks/ComplianceFrameworksView')
+);
+const ComplianceFrameworkDetailView = React.lazy(
+  () => import('./components/ComplianceFrameworks/ComplianceFrameworkDetailView')
+);
+const AlertsHistoryView = React.lazy(
+  () => import('./components/Alerts/AlertsHistoryView')
 );
 
 const theme = createTheme({
@@ -65,24 +76,74 @@ const DocumentAnalysisPage: React.FC = () => {
   return <DocumentAnalysisView documentId={id} />;
 };
 
+const ComplianceFrameworkDetailPage: React.FC = () => {
+  const segments = window.location.pathname.split('/');
+  const id = segments[2] ?? '';
+  return <ComplianceFrameworkDetailView frameworkId={id} />;
+};
+
+const AppShell: React.FC = () => {
+  const [notification, setNotification] = useState<AppNotification | null>(null);
+
+  useEffect(() => {
+    connectNotifications();
+    const unsubscribe = subscribeToNotifications((incomingNotification) => {
+      setNotification(incomingNotification);
+      queryClient.invalidateQueries({ queryKey: ['regulatory-alerts'] });
+      queryClient.invalidateQueries({ queryKey: ['compliance-frameworks'] });
+      if (incomingNotification.frameworkId) {
+        queryClient.invalidateQueries({
+          queryKey: ['compliance-framework', incomingNotification.frameworkId],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ['framework-assessments', incomingNotification.frameworkId],
+        });
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  return (
+    <>
+      <Router>
+        <Suspense fallback={<LoadingFallback />}>
+          <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<RegulatoryDashboard />} />
+            <Route path="/documents" element={<DocumentsListView />} />
+            <Route path="/documents/:id/analysis" element={<DocumentAnalysisPage />} />
+            <Route path="/frameworks" element={<ComplianceFrameworksView />} />
+            <Route path="/frameworks/:id" element={<ComplianceFrameworkDetailPage />} />
+            <Route path="/frameworks/:id/assessments" element={<ComplianceFrameworkDetailPage />} />
+            <Route path="/alerts" element={<AlertsHistoryView />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </Suspense>
+      </Router>
+      <Snackbar
+        open={!!notification}
+        autoHideDuration={6000}
+        onClose={() => setNotification(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert onClose={() => setNotification(null)} severity={notification?.severity ?? 'info'}>
+          {notification?.message}
+        </Alert>
+      </Snackbar>
+    </>
+  );
+};
+
 const App: React.FC = () => {
   return (
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider theme={theme}>
           <CssBaseline />
-          <Router>
-            <Suspense fallback={<LoadingFallback />}>
-              <Routes>
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/dashboard" element={<RegulatoryDashboard />} />
-                <Route path="/documents" element={<DocumentsListView />} />
-                <Route path="/documents/:id/analysis" element={<DocumentAnalysisPage />} />
-                <Route path="/frameworks" element={<ComplianceFrameworksView />} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
-              </Routes>
-            </Suspense>
-          </Router>
+          <AppShell />
           {ReactQueryDevtools && (
             <Suspense fallback={null}>
               <ReactQueryDevtools />

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using RegulatorIQ.Data;
 using RegulatorIQ.Services;
+using RegulatorIQ.Services.Analysis;
 using RegulatorIQ.Services.BackgroundServices;
 using Hangfire;
 using Hangfire.PostgreSql;
@@ -17,6 +18,8 @@ builder.Services.AddScoped<IComplianceFrameworkService, ComplianceFrameworkServi
 builder.Services.AddScoped<IDocumentAnalysisService, DocumentAnalysisService>();
 builder.Services.AddScoped<IChangeImpactService, ChangeImpactService>();
 builder.Services.AddScoped<IRegulatoryMonitoringService, RegulatoryMonitoringService>();
+builder.Services.AddScoped<IAIAnalysisProvider, AIAnalysisProvider>();
+builder.Services.AddScoped<IRulesAnalysisProvider, RulesAnalysisProvider>();
 
 // HTTP client for ML services
 builder.Services.AddHttpClient("MLServices");

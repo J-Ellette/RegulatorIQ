@@ -187,6 +187,14 @@ namespace RegulatorIQ.Models
         public string[]? IndustrySegments { get; set; }
         public string[]? GeographicScope { get; set; }
 
+        [MaxLength(50)]
+        public string Status { get; set; } = "active";
+
+        [MaxLength(255)]
+        public string? Owner { get; set; }
+
+        public DateTime? NextReviewDate { get; set; }
+
         [Column(TypeName = "jsonb")]
         public string? FrameworkData { get; set; }
 
@@ -302,6 +310,13 @@ namespace RegulatorIQ.Models
 
         [MaxLength(255)]
         public string? AcknowledgedBy { get; set; }
+
+        public DateTime? ResolvedAt { get; set; }
+
+        [MaxLength(255)]
+        public string? ResolvedBy { get; set; }
+
+        public string? ResolutionNotes { get; set; }
     }
 
     public class RegulatoryAuditLog

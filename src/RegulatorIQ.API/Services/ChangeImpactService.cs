@@ -3,6 +3,8 @@ using RegulatorIQ.Models;
 using RegulatorIQ.DTOs;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using Microsoft.AspNetCore.SignalR;
+using RegulatorIQ.Hubs;
 
 namespace RegulatorIQ.Services
 {
@@ -16,13 +18,16 @@ namespace RegulatorIQ.Services
     {
         private readonly RegulatorIQContext _context;
         private readonly ILogger<ChangeImpactService> _logger;
+        private readonly IHubContext<NotificationsHub> _hubContext;
 
         public ChangeImpactService(
             RegulatorIQContext context,
-            ILogger<ChangeImpactService> logger)
+            ILogger<ChangeImpactService> logger,
+            IHubContext<NotificationsHub> hubContext)
         {
             _context = context;
             _logger = logger;
+            _hubContext = hubContext;
         }
 
         public async Task<ChangeImpactAssessmentDto> AssessChangeImpactAsync(Guid frameworkId, Guid documentId)
@@ -67,6 +72,17 @@ namespace RegulatorIQ.Services
 
             _context.ChangeImpactAssessments.Add(assessment);
             await _context.SaveChangesAsync();
+
+            await _hubContext.Clients.All.SendAsync("impactAssessmentCompleted", new
+            {
+                frameworkId,
+                documentId,
+                assessmentId = assessment.Id,
+                impactScore = assessment.ImpactScore,
+                riskLevel = assessment.RiskLevel,
+                assessmentDate = assessment.AssessmentDate,
+                documentTitle = document.Title
+            });
 
             return MapToDto(assessment);
         }

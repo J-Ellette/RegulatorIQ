@@ -99,6 +99,10 @@ const DocumentAnalysisView: React.FC<DocumentAnalysisViewProps> = ({ documentId 
                   color={getPriorityColor(analysis.classification?.urgencyLevel)}
                 />
                 <Chip label={`Confidence: ${(analysis.confidenceScore * 100).toFixed(0)}%`} />
+                <Chip
+                  label={`Provider: ${(analysis.analysisProvider ?? analysis.analyzerVersion ?? 'unknown').toUpperCase()}`}
+                  variant="outlined"
+                />
                 {analysis.classification?.primaryCategory && (
                   <Chip label={analysis.classification.primaryCategory} variant="outlined" />
                 )}
