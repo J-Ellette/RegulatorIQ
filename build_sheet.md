@@ -417,11 +417,56 @@ class MultiStateMonitor:
     
     def __init__(self):
         self.state_monitors = {
-            'texas': TexasRegulatoryMonitor(),
-            'oklahoma': OklahomaRegulatoryMonitor(),
+            'alabama': AlabamaRegulatoryMonitor(),
+            'alaska': AlaskaRegulatoryMonitor(),
+            'arizona': ArizonaRegulatoryMonitor(),
+            'arkansas': ArkansasRegulatoryMonitor(),
+            'california': CaliforniaRegulatoryMonitor(),
+            'colorado': ColoradoRegulatoryMonitor(),
+            'connecticut': ConnecticutRegulatoryMonitor(),
+            'delaware': DelawareRegulatoryMonitor(),
+            'florida': FloridaRegulatoryMonitor(),
+            'georgia': GeorgiaRegulatoryMonitor(),
+            'hawaii': HawaiiRegulatoryMonitor(),
+            'idaho': IdahoRegulatoryMonitor(),
+            'illinois': IllinoisRegulatoryMonitor(),
+            'indiana': IndianaRegulatoryMonitor(),
+            'iowa': IowaRegulatoryMonitor(),
+            'kansas': KansasRegulatoryMonitor(),
+            'kentucky': KentuckyRegulatoryMonitor(),
             'louisiana': LouisianaRegulatoryMonitor(),
+            'maine': MaineRegulatoryMonitor(),
+            'maryland': MarylandRegulatoryMonitor(),
+            'massachusetts': MassachusettsRegulatoryMonitor(),
+            'michigan': MichiganRegulatoryMonitor(),
+            'minnesota': MinnesotaRegulatoryMonitor(),
+            'mississippi': MississippiRegulatoryMonitor(),
+            'missouri': MissouriRegulatoryMonitor(),
+            'montana': MontanaRegulatoryMonitor(),
+            'nebraska': NebraskaRegulatoryMonitor(),
+            'nevada': NevadaRegulatoryMonitor(),
+            'new_hampshire': NewHampshireRegulatoryMonitor(),
+            'new_jersey': NewJerseyRegulatoryMonitor(),
             'new_mexico': NewMexicoRegulatoryMonitor(),
-            'arkansas': ArkansasRegulatoryMonitor()
+            'new_york': NewYorkRegulatoryMonitor(),
+            'north_carolina': NorthCarolinaRegulatoryMonitor(),
+            'north_dakota': NorthDakotaRegulatoryMonitor(),
+            'ohio': OhioRegulatoryMonitor(),
+            'oklahoma': OklahomaRegulatoryMonitor(),
+            'oregon': OregonRegulatoryMonitor(),
+            'pennsylvania': PennsylvaniaRegulatoryMonitor(),
+            'rhode_island': RhodeIslandRegulatoryMonitor(),
+            'south_carolina': SouthCarolinaRegulatoryMonitor(),
+            'south_dakota': SouthDakotaRegulatoryMonitor(),
+            'tennessee': TennesseeRegulatoryMonitor(),
+            'texas': TexasRegulatoryMonitor(),
+            'utah': UtahRegulatoryMonitor(),
+            'vermont': VermontRegulatoryMonitor(),
+            'virginia': VirginiaRegulatoryMonitor(),
+            'washington': WashingtonRegulatoryMonitor(),
+            'west_virginia': WestVirginiaRegulatoryMonitor(),
+            'wisconsin': WisconsinRegulatoryMonitor(),
+            'wyoming': WyomingRegulatoryMonitor()
         }
     
     async def monitor_all_states(self) -> Dict[str, List[Dict[str, Any]]]:
@@ -1014,6 +1059,68 @@ CREATE INDEX idx_frameworks_company ON compliance_frameworks(company_id);
 
 -- Full text search configuration
 CREATE INDEX idx_documents_fulltext ON regulatory_documents USING GIN(content_search_vector);
+
+-- Seed data: Federal agencies
+INSERT INTO regulatory_agencies (name, abbreviation, agency_type, jurisdiction, website_url, monitoring_enabled) VALUES
+('Federal Energy Regulatory Commission', 'FERC', 'federal', 'Federal', 'https://www.ferc.gov', true),
+('Pipeline and Hazardous Materials Safety Administration', 'PHMSA', 'federal', 'Federal', 'https://www.phmsa.dot.gov', true),
+('Environmental Protection Agency', 'EPA', 'federal', 'Federal', 'https://www.epa.gov', true),
+('Department of Energy', 'DOE', 'federal', 'Federal', 'https://www.energy.gov', true);
+
+-- Seed data: State regulatory agencies (one per state, all 50 states)
+INSERT INTO regulatory_agencies (name, abbreviation, agency_type, jurisdiction, website_url, monitoring_enabled) VALUES
+('Alabama Public Service Commission', 'ALPSC', 'state', 'Alabama', 'https://www.psc.state.al.us', true),
+('Alaska Regulatory Commission of Alaska', 'RCA', 'state', 'Alaska', 'https://rca.alaska.gov', true),
+('Arizona Corporation Commission', 'ACC', 'state', 'Arizona', 'https://azcc.gov', true),
+('Arkansas Public Service Commission', 'ARPSC', 'state', 'Arkansas', 'https://www.apsc.arkansas.gov', true),
+('California Public Utilities Commission', 'CAPUC', 'state', 'California', 'https://www.cpuc.ca.gov', true),
+('Colorado Public Utilities Commission', 'COPUC', 'state', 'Colorado', 'https://puc.colorado.gov', true),
+('Connecticut Public Utilities Regulatory Authority', 'PURA', 'state', 'Connecticut', 'https://portal.ct.gov/PURA', true),
+('Delaware Public Service Commission', 'DPSC', 'state', 'Delaware', 'https://depsc.delaware.gov', true),
+('Florida Public Service Commission', 'FPSC', 'state', 'Florida', 'https://www.floridapsc.com', true),
+('Georgia Public Service Commission', 'GPSC', 'state', 'Georgia', 'https://psc.ga.gov', true),
+('Hawaii Public Utilities Commission', 'HPUC', 'state', 'Hawaii', 'https://puc.hawaii.gov', true),
+('Idaho Public Utilities Commission', 'IPUC', 'state', 'Idaho', 'https://puc.idaho.gov', true),
+('Illinois Commerce Commission', 'ICC', 'state', 'Illinois', 'https://icc.illinois.gov', true),
+('Indiana Utility Regulatory Commission', 'IURC', 'state', 'Indiana', 'https://www.in.gov/iurc', true),
+('Iowa Utilities Board', 'IUB', 'state', 'Iowa', 'https://iub.iowa.gov', true),
+('Kansas Corporation Commission', 'KCC', 'state', 'Kansas', 'https://kcc.ks.gov', true),
+('Kentucky Public Service Commission', 'KPSC', 'state', 'Kentucky', 'https://psc.ky.gov', true),
+('Louisiana Public Service Commission', 'LPSC', 'state', 'Louisiana', 'https://lpsc.louisiana.gov', true),
+('Maine Public Utilities Commission', 'MEPUC', 'state', 'Maine', 'https://www.maine.gov/mpuc', true),
+('Maryland Public Service Commission', 'MDPSC', 'state', 'Maryland', 'https://www.psc.state.md.us', true),
+('Massachusetts Department of Public Utilities', 'MDPU', 'state', 'Massachusetts', 'https://www.mass.gov/orgs/department-of-public-utilities', true),
+('Michigan Public Service Commission', 'MIPSC', 'state', 'Michigan', 'https://www.michigan.gov/mpsc', true),
+('Minnesota Public Utilities Commission', 'MNPUC', 'state', 'Minnesota', 'https://mn.gov/puc', true),
+('Mississippi Public Service Commission', 'MSPSC', 'state', 'Mississippi', 'https://www.psc.ms.gov', true),
+('Missouri Public Service Commission', 'MOPSC', 'state', 'Missouri', 'https://psc.mo.gov', true),
+('Montana Public Service Commission', 'MTPSC', 'state', 'Montana', 'https://psc.mt.gov', true),
+('Nebraska Public Service Commission', 'NPSC', 'state', 'Nebraska', 'https://psc.nebraska.gov', true),
+('Nevada Public Utilities Commission', 'NPUC', 'state', 'Nevada', 'https://puc.nv.gov', true),
+('New Hampshire Public Utilities Commission', 'NHPUC', 'state', 'New Hampshire', 'https://www.puc.nh.gov', true),
+('New Jersey Board of Public Utilities', 'NJBPU', 'state', 'New Jersey', 'https://www.nj.gov/bpu', true),
+('New Mexico Public Regulation Commission', 'NMPRC', 'state', 'New Mexico', 'https://www.nmprc.state.nm.us', true),
+('New York Public Service Commission', 'NYPSC', 'state', 'New York', 'https://www.dps.ny.gov', true),
+('North Carolina Utilities Commission', 'NCUC', 'state', 'North Carolina', 'https://www.ncuc.net', true),
+('North Dakota Public Service Commission', 'NDPSC', 'state', 'North Dakota', 'https://www.psc.nd.gov', true),
+('Public Utilities Commission of Ohio', 'PUCO', 'state', 'Ohio', 'https://puco.ohio.gov', true),
+('Oklahoma Corporation Commission', 'OCC', 'state', 'Oklahoma', 'https://www.occeweb.com', true),
+('Oregon Public Utility Commission', 'OPUC', 'state', 'Oregon', 'https://www.oregon.gov/puc', true),
+('Pennsylvania Public Utility Commission', 'PAPUC', 'state', 'Pennsylvania', 'https://www.puc.pa.gov', true),
+('Rhode Island Public Utilities Commission', 'RIPUC', 'state', 'Rhode Island', 'https://www.ripuc.ri.gov', true),
+('South Carolina Public Service Commission', 'SCPSC', 'state', 'South Carolina', 'https://psc.sc.gov', true),
+('South Dakota Public Utilities Commission', 'SDPUC', 'state', 'South Dakota', 'https://puc.sd.gov', true),
+('Tennessee Regulatory Authority', 'TRA', 'state', 'Tennessee', 'https://www.tn.gov/tra', true),
+-- Texas has two primary regulatory bodies relevant to natural gas: TRC (production/pipelines) and TCEQ (environmental)
+('Texas Railroad Commission', 'TRC', 'state', 'Texas', 'https://www.rrc.texas.gov', true),
+('Texas Commission on Environmental Quality', 'TCEQ', 'state', 'Texas', 'https://www.tceq.texas.gov', true),
+('Utah Public Service Commission', 'UPSC', 'state', 'Utah', 'https://psc.utah.gov', true),
+('Vermont Public Utility Commission', 'VPUC', 'state', 'Vermont', 'https://puc.vermont.gov', true),
+('Virginia State Corporation Commission', 'VASCC', 'state', 'Virginia', 'https://www.scc.virginia.gov', true),
+('Washington Utilities and Transportation Commission', 'WUTC', 'state', 'Washington', 'https://www.utc.wa.gov', true),
+('West Virginia Public Service Commission', 'WVPSC', 'state', 'West Virginia', 'https://psc.wv.gov', true),
+('Public Service Commission of Wisconsin', 'PSCW', 'state', 'Wisconsin', 'https://psc.wi.gov', true),
+('Wyoming Public Service Commission', 'WYPSC', 'state', 'Wyoming', 'https://psc.wyo.gov', true);
 ```
 
 ### **Entity Framework Core Models**
@@ -2432,7 +2539,19 @@ namespace RegulatorIQ.Services.BackgroundServices
 
             try
             {
-                var states = new[] { "Texas", "Oklahoma", "Louisiana", "New Mexico", "Arkansas" };
+                var states = new[]
+                {
+                    "Alabama", "Alaska", "Arizona", "Arkansas", "California",
+                    "Colorado", "Connecticut", "Delaware", "Florida", "Georgia",
+                    "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa",
+                    "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland",
+                    "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri",
+                    "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey",
+                    "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio",
+                    "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina",
+                    "South Dakota", "Tennessee", "Texas", "Utah", "Vermont",
+                    "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming"
+                };
                 
                 foreach (var state in states)
                 {
@@ -3103,7 +3222,7 @@ http {
 ### **Phase 3: State Monitoring & Web Scraping (Months 9-12) - $118,000**
 **Deliverables:**
 - Texas Railroad Commission monitoring
-- Multi-state regulatory tracking
+- All 50-state regulatory tracking
 - Advanced web scraping with Selenium
 - PDF processing and OCR capabilities
 - Automated document prioritization
