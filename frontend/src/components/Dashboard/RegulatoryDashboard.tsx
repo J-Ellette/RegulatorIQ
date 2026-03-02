@@ -66,7 +66,7 @@ const RegulatoryDashboard: React.FC = () => {
     },
   });
 
-  const handleViewDocument = (id: string) => navigate(`/documents/${id}`);
+  const handleViewDocument = (id: string) => navigate(`/documents/${id}/analysis`);
   const handleViewAlert = (id: string) => navigate(`/alerts/${id}`);
   const handleDownloadPdf = (url?: string) => {
     if (url) window.open(url, '_blank');

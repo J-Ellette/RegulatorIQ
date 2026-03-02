@@ -36,6 +36,15 @@ namespace RegulatorIQ.DTOs
         public string? Abbreviation { get; set; }
         public string? AgencyType { get; set; }
         public string? Jurisdiction { get; set; }
+        public string? WebsiteUrl { get; set; }
+    }
+
+    public class GetAgenciesRequest
+    {
+        public string? AgencyType { get; set; }
+        public string? Jurisdiction { get; set; }
+        public bool? MonitoringEnabled { get; set; }
+        public string? SearchTerm { get; set; }
     }
 
     public class DocumentAnalysisDto

@@ -26,6 +26,7 @@ builder.Services.AddScoped<IRegulatoryDocumentService, RegulatoryDocumentService
 builder.Services.AddScoped<IComplianceFrameworkService, ComplianceFrameworkService>();
 builder.Services.AddScoped<IDocumentAnalysisService, DocumentAnalysisService>();
 builder.Services.AddScoped<IChangeImpactService, ChangeImpactService>();
+builder.Services.AddScoped<IAgencyService, AgencyService>();
 
 // HTTP client for ML services
 builder.Services.AddHttpClient("MLServices");
