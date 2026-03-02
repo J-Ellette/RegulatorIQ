@@ -22,6 +22,12 @@ const RegulatoryDashboard = React.lazy(
 const DocumentAnalysisView = React.lazy(
   () => import('./components/Documents/DocumentAnalysisView')
 );
+const DocumentsListView = React.lazy(
+  () => import('./components/Documents/DocumentsListView')
+);
+const ComplianceFrameworksView = React.lazy(
+  () => import('./components/ComplianceFrameworks/ComplianceFrameworksView')
+);
 
 const theme = createTheme({
   palette: {
@@ -53,7 +59,9 @@ const LoadingFallback = () => (
 );
 
 const DocumentAnalysisPage: React.FC = () => {
-  const id = window.location.pathname.split('/').pop() ?? '';
+  const segments = window.location.pathname.split('/');
+  // path is /documents/:id/analysis — id is at index 2
+  const id = segments[2] ?? '';
   return <DocumentAnalysisView documentId={id} />;
 };
 
@@ -68,7 +76,9 @@ const App: React.FC = () => {
               <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<RegulatoryDashboard />} />
+                <Route path="/documents" element={<DocumentsListView />} />
                 <Route path="/documents/:id/analysis" element={<DocumentAnalysisPage />} />
+                <Route path="/frameworks" element={<ComplianceFrameworksView />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </Suspense>

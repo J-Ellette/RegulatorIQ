@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type {
+  RegulatoryAgency,
   RegulatoryDocument,
   RegulatoryDocumentDetail,
   DocumentAnalysis,
@@ -47,6 +48,17 @@ apiClient.interceptors.response.use(
 );
 
 export const regulatoryApi = {
+  // Agencies
+  getAgencies: async (params?: {
+    agencyType?: string;
+    jurisdiction?: string;
+    monitoringEnabled?: boolean;
+    searchTerm?: string;
+  }): Promise<RegulatoryAgency[]> => {
+    const response = await apiClient.get('/agencies', { params });
+    return response.data;
+  },
+
   // Dashboard
   getDashboardStats: async (timeframe: string): Promise<DashboardStats> => {
     const response = await apiClient.get(`/regulatorydocuments/stats`, {
